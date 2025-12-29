@@ -9,10 +9,14 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  displayName?: string; // For comments
+  companyName?: string;
   phone?: string;
+  instagram?: string;
   avatar: string; // URL or base64
   role: UserRole;
   status: 'active' | 'inactive';
+  createdAt: string; // ISO Date
 }
 
 export interface ThemeConfig {
@@ -34,7 +38,7 @@ export interface BlockContent {
   showCta?: boolean; // New field to toggle CTA
   ctaText?: string; // For Hero
   ctaLink?: string; // For Hero
-  
+
   // Content List Specifics
   sourceType?: 'all_courses' | 'specific_courses' | 'specific_module';
   selectedIds?: string[]; // IDs of courses or modules to show
@@ -63,21 +67,21 @@ export interface Lesson {
   title: string;
   description: string; // Rich Text
   duration: number; // in minutes (auto-calculated or default)
-  
+
   // Content Types
   type: 'video' | 'text' | 'quiz';
-  
+
   // Video Specific
   videoUrl?: string; // The final embed source URL
   provider?: VideoProvider; // The selected provider
-  
+
   // Text Specific
   textContent?: string; // HTML/Rich text content
 
   // Common
   thumbnail: string;
   attachments: Attachment[]; // Supplementary materials
-  
+
   // Progress
   isCompleted: boolean;
   progress: number; // 0-100
@@ -119,7 +123,7 @@ export interface Comment {
 }
 
 // Navigation Types
-export type ViewState = 'LOGIN' | 'HOME' | 'COURSE_DETAIL' | 'PLAYER' | 'ADMIN_DASHBOARD' | 'BUILDER' | 'USERS' | 'MY_PROFILE' | 'MODERATION' | 'INTEGRATIONS';
+export type ViewState = 'LOGIN' | 'HOME' | 'COURSE_DETAIL' | 'PLAYER' | 'ADMIN_DASHBOARD' | 'BUILDER' | 'USERS' | 'MY_PROFILE' | 'MODERATION' | 'INTEGRATIONS' | 'STORAGE_TEST';
 
 export interface NavContext {
   view: ViewState;

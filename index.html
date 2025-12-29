@@ -1,57 +1,150 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ConversApp Academy</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conversapp Academy</title>
+  <link rel="icon" type="image/png" href="https://i.imgur.com/vAJo2nR.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fontes: Inter (UI) + JetBrains Mono (Tech) -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="/styles.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              primary: '#25D366',    // Verde Neon WhatsApp
+              secondary: '#1ea952',  // Verde escuro
+              dark: '#050505',       // Fundo Principal
+              card: '#0A0A0A',       // Surface Cards
+              surface: '#0F0F0F',    // Surface Highlight
+              hover: '#111111',      // Hover State
+              accent: '#25D366',     // Accent (compatibilidade)
             },
-            colors: {
-              brand: {
-                primary: 'var(--color-primary)', // Dynamic Green #00D766
-                secondary: 'var(--color-secondary)', // Dynamic
-                dark: '#121214', // ConversApp Dark
-                card: '#202024', // ConversApp Card
-                accent: '#00D766', // Green Accent
-              }
+            neon: {
+              DEFAULT: '#25D366',
+              glow: 'rgba(37, 211, 102, 0.1)',
+              border: 'rgba(37, 211, 102, 0.2)',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'slide-up': 'slideUp 0.5s ease-out',
+            'fade-in': 'fadeIn 0.3s ease-in',
+          },
+          keyframes: {
+            slideUp: {
+              '0%': { transform: 'translateY(10px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
             }
           }
         }
       }
-    </script>
-    <style>
-      :root {
-        --color-primary: #00D766;
-        --color-secondary: #00B359;
-      }
-      body {
-        background-color: #121214;
-        color: #E1E1E6;
-      }
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #121214;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #323238;
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #00D766;
-      }
-    </style>
+    }
+  </script>
+
+  <style>
+    :root {
+      --color-primary: #25D366;
+      --color-secondary: #1ea952;
+    }
+
+    body {
+      background-color: #050505;
+      color: #E1E1E6;
+    }
+
+    /* Background Grid Pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Noise Texture */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Ambient Glow Orbs */
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(37, 211, 102, 0.08) 0%, transparent 70%);
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-orb-1 {
+      width: 500px;
+      height: 500px;
+      top: -250px;
+      right: -250px;
+    }
+
+    .glow-orb-2 {
+      width: 400px;
+      height: 400px;
+      bottom: -200px;
+      left: -200px;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #050505;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1a1a1a;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #25D366;
+    }
+  </style>
+
   <script type="importmap">
 {
   "imports": {
@@ -71,7 +164,14 @@
 }
 </script>
 </head>
-  <body>
-    <div id="root"></div>
-  </body>
+
+<body>
+  <!-- Ambient Glow Orbs -->
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>
