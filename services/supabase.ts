@@ -2,20 +2,34 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, ThemeConfig, PageBlock, Course, Comment, CommentStatus } from '../types';
 import { DEFAULT_AVATAR } from './data';
+import { generateSecureToken } from './secureRandom';
 
 // --- CONFIGURATION ---
-// Fallback to provided keys if environment variables are missing
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://supa.conversapp.app.br';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0._Lg9Cay-21cEQi56tidqiOkBhzjQ6kePgSRbcQfhvO8';
+// Credentials MUST come from .env — never hardcode fallback keys, that is how
+// secrets leak into version control.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY;
 
-// Safe initialization
 export const supabase = (SUPABASE_URL && SUPABASE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
 if (!supabase) {
-  console.error("CRITICAL: Supabase client could not be initialized.");
+  console.error(
+    'CRITICAL: Supabase client could not be initialized. ' +
+    'Make sure VITE_SUPABASE_URL and VITE_SUPABASE_KEY are set in your .env file.'
+  );
 }
+
+// One-shot migration: older builds of the app kept a `local_users_db` entry
+// in localStorage containing every user's plaintext password. Remove it on
+// first load so existing browsers don't keep carrying that secret around.
+try {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('local_users_db')) {
+    localStorage.removeItem('local_users_db');
+    console.info('🔒 Cleared legacy local_users_db (contained plaintext passwords).');
+  }
+} catch { /* localStorage may be unavailable — ignore */ }
 
 // --- AUTH SERVICE ---
 export const AuthService = {
@@ -26,103 +40,87 @@ export const AuthService = {
   },
 
   signIn: async (email: string, password: string) => {
-    // 1. Tentar Supabase com Timeout
-    if (supabase) {
-      try {
-        // Timeout de 3s para o Supabase
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase Timeout')), 3000));
-
-        const { data, error } = await Promise.race([
-          supabase.auth.signInWithPassword({ email, password }),
-          timeout
-        ]) as any;
-
-        if (!error && data.session) {
-          console.log('✅ Login via Supabase');
-          const profile = await AuthService.getProfile(data.user.id);
-          const userToCache = profile || {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.user_metadata?.name || email.split('@')[0],
-            role: (data.user.user_metadata?.role as UserRole) || UserRole.STUDENT,
-            avatar: DEFAULT_AVATAR
-          };
-          localStorage.setItem('local_user', JSON.stringify(userToCache));
-          return { user: data.user, session: data.session };
-        }
-      } catch (e) {
-        console.warn('⚠️ Supabase login falhou ou timeout, tentando local...', e);
-      }
+    if (!supabase) {
+      throw new Error(
+        'Serviço de autenticação indisponível. Verifique a configuração do Supabase.'
+      );
     }
 
-    // 2. Fallback Local
-    const users = JSON.parse(localStorage.getItem('local_users_db') || '[]');
-    const user = users.find((u: any) => u.email === email && u.password === password);
+    // 3s timeout so a hung network doesn't freeze the login screen forever.
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Tempo de conexão esgotado. Tente novamente.')), 3000)
+    );
 
-    if (user) {
-      console.log('✅ Login via Local Storage');
-      localStorage.setItem('local_user', JSON.stringify(user));
-      return { user, session: { access_token: 'local-token', user } };
+    const result = await Promise.race([
+      supabase.auth.signInWithPassword({ email, password }),
+      timeout,
+    ]);
+
+    const { data, error } = result as Awaited<
+      ReturnType<typeof supabase.auth.signInWithPassword>
+    >;
+
+    if (error || !data.session) {
+      throw new Error(error?.message || 'Email ou senha incorretos');
     }
 
-    throw new Error('Email ou senha incorretos');
+    const profile = await AuthService.getProfile(data.user.id);
+    const userToCache: User = profile || {
+      id: data.user.id,
+      email: data.user.email || email,
+      name: data.user.user_metadata?.name || email.split('@')[0],
+      role: (data.user.user_metadata?.role as UserRole) || UserRole.STUDENT,
+      avatar: DEFAULT_AVATAR,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+
+    // Cache the *profile* only — never the password.
+    localStorage.setItem('local_user', JSON.stringify(userToCache));
+    return { user: data.user, session: data.session };
   },
 
   signUp: async (name: string, email: string, password: string) => {
-    // 1. Tentar Supabase com Timeout
-    if (supabase) {
-      try {
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase Timeout')), 3000));
-
-        const { data, error } = await Promise.race([
-          supabase.auth.signUp({
-            email,
-            password,
-            options: { data: { name, role: UserRole.STUDENT } }
-          }),
-          timeout
-        ]) as any;
-
-        if (!error && data.user) {
-          // Criar perfil (sem bloquear o retorno se falhar)
-          supabase.from('profiles').insert({
-            id: data.user.id,
-            name,
-            email,
-            role: UserRole.STUDENT,
-            avatar: DEFAULT_AVATAR
-          }).then(({ error }) => {
-            if (error) console.error('Erro criando perfil bg:', error);
-          });
-
-          return { user: data.user, session: data.session };
-        }
-      } catch (e) {
-        console.warn('⚠️ Supabase cadastro falhou, usando local...', e);
-      }
+    if (!supabase) {
+      throw new Error(
+        'Serviço de cadastro indisponível. Verifique a configuração do Supabase.'
+      );
     }
 
-    // 2. Fallback Local
-    const users = JSON.parse(localStorage.getItem('local_users_db') || '[]');
-    if (users.find((u: any) => u.email === email)) {
-      throw new Error('Email já cadastrado (Local)');
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Tempo de conexão esgotado. Tente novamente.')), 3000)
+    );
+
+    const result = await Promise.race([
+      supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role: UserRole.STUDENT } },
+      }),
+      timeout,
+    ]);
+
+    const { data, error } = result as Awaited<ReturnType<typeof supabase.auth.signUp>>;
+
+    if (error || !data.user) {
+      throw new Error(error?.message || 'Não foi possível criar a conta.');
     }
 
-    const newUser = {
-      id: `local-${Date.now()}`,
-      name,
-      email,
-      password,
-      role: UserRole.STUDENT,
-      avatar: DEFAULT_AVATAR,
-      createdAt: new Date().toISOString(),
-      status: 'active'
-    };
+    // Fire-and-forget profile creation — a RLS-protected row in `profiles`.
+    supabase
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        name,
+        email,
+        role: UserRole.STUDENT,
+        avatar: DEFAULT_AVATAR,
+      })
+      .then(({ error: profileError }) => {
+        if (profileError) console.error('Erro criando perfil:', profileError);
+      });
 
-    users.push(newUser);
-    localStorage.setItem('local_users_db', JSON.stringify(users));
-    localStorage.setItem('local_user', JSON.stringify(newUser));
-    return { user: newUser, session: { access_token: 'local-token', user: newUser } };
+    return { user: data.user, session: data.session };
   },
 
   signOut: async () => {
@@ -197,36 +195,49 @@ export const AuthService = {
     else alert('Simulação: Email de reset enviado para ' + email);
   },
 
-  createUser: async (name: string, email: string, password: string, role: UserRole, phone?: string) => {
-    // Tenta Supabase primeiro
-    if (supabase) {
-      try {
-        // Nota: Criar usuário programaticamente no supabase client-side sem ser admin do projeto é restrito.
-        // Geralmente usa-se uma Edge Function. Aqui vamos tentar o fluxo normal.
-        // Se falhar, vai pro local.
-        const { data, error } = await supabase.auth.signUp({
-          email, password, options: { data: { name, role, phone } }
-        });
-        if (!error && data.user) {
-          await supabase.from('profiles').insert({
-            id: data.user.id, name, email, role, phone, avatar: DEFAULT_AVATAR
-          });
-          return data.user;
-        }
-      } catch (e) { console.warn('Supabase create user failed', e); }
+  createUser: async (
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole,
+    phone?: string,
+  ) => {
+    if (!supabase) {
+      throw new Error(
+        'Serviço indisponível. Verifique a configuração do Supabase.'
+      );
     }
 
-    // Fallback Local
-    const users = JSON.parse(localStorage.getItem('local_users_db') || '[]');
-    const newUser = {
-      id: `local-${Date.now()}`,
-      name, email, password, role, phone,
-      avatar: DEFAULT_AVATAR, createdAt: new Date().toISOString()
-    };
-    users.push(newUser);
-    localStorage.setItem('local_users_db', JSON.stringify(users));
-    return newUser;
-  }
+    // NOTE: client-side signUp creates the auth record. For production, the
+    // profile insert + role assignment should happen inside a Supabase Edge
+    // Function protected by service_role, otherwise a malicious user could
+    // self-elevate by calling this endpoint directly.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, role, phone } },
+    });
+
+    if (error || !data.user) {
+      throw new Error(error?.message || 'Não foi possível criar o usuário.');
+    }
+
+    const { error: profileError } = await supabase.from('profiles').insert({
+      id: data.user.id,
+      name,
+      email,
+      role,
+      phone,
+      avatar: DEFAULT_AVATAR,
+    });
+
+    if (profileError) {
+      console.error('Erro criando perfil:', profileError);
+      throw new Error('Usuário criado, mas falha ao salvar o perfil: ' + profileError.message);
+    }
+
+    return data.user;
+  },
 };
 
 // --- DATA SERVICES ---
@@ -388,12 +399,12 @@ export const UserService = {
             email: p.email,
             role: p.role as UserRole,
             avatar: p.avatar || DEFAULT_AVATAR,
-            status: 'active' as 'active' | 'inactive',
+            status: (p.status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
             createdAt: p.created_at || new Date().toISOString(),
             phone: p.phone,
             companyName: p.company_name,
             displayName: p.display_name,
-            instagram: p.instagram
+            instagram: p.instagram,
           }));
         }
       } catch (e) {
@@ -401,32 +412,14 @@ export const UserService = {
       }
     }
 
-    // 2. Fetch Local
-    const localUsers = JSON.parse(localStorage.getItem('local_users_db') || '[]');
-
-    // 3. Merge (Remote priority)
-    const remoteIds = new Set(users.map(u => u.id));
-    localUsers.forEach((localUser: User) => {
-      if (!remoteIds.has(localUser.id)) {
-        users.push(localUser);
-      }
-    });
-
     return users;
   },
 
   updateUser: async (user: User) => {
     console.log('👤 Updating user:', user.name, 'ID:', user.id);
 
-    // Update Local Cache/DB
-    const localUsers = JSON.parse(localStorage.getItem('local_users_db') || '[]');
-    const idx = localUsers.findIndex((u: any) => u.id === user.id);
-    if (idx >= 0) {
-      localUsers[idx] = { ...localUsers[idx], ...user };
-      localStorage.setItem('local_users_db', JSON.stringify(localUsers));
-    }
-
-    // Update active session cache
+    // Update active session cache so the UI reflects changes immediately.
+    // We only cache the profile — never credentials.
     const currentLocal = JSON.parse(localStorage.getItem('local_user') || '{}');
     if (currentLocal.id === user.id) {
       localStorage.setItem('local_user', JSON.stringify(user));
@@ -438,33 +431,58 @@ export const UserService = {
     try {
       console.log('☁️ Updating Supabase...');
 
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase Timeout')), 3000));
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase Timeout')), 3000),
+      );
 
-      const { error } = await Promise.race([
+      const result = await Promise.race([
         supabase.from('profiles').update({
           name: user.name,
+          email: user.email,
           role: user.role,
           avatar: user.avatar,
           phone: user.phone,
+          status: user.status,
           company_name: user.companyName,
           display_name: user.displayName,
-          instagram: user.instagram
+          instagram: user.instagram,
         }).eq('id', user.id),
-        timeout
-      ]) as any;
+        timeout,
+      ]);
+      const { error } = result as { error: { message: string } | null };
 
       if (error) {
-        console.error("❌ Supabase update error:", error);
-        // Não lançamos erro aqui para não travar a UI, pois já salvou localmente.
-        // Mas idealmente mostraria um aviso discreto.
-      } else {
-        console.log('✅ Profile updated in Supabase successfully!');
+        console.error('❌ Supabase update error:', error);
+        throw new Error(error.message);
       }
-
-    } catch (e: any) {
-      console.error("❌ Supabase update failed:", e.message);
+      console.log('✅ Profile updated in Supabase successfully!');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+      console.error('❌ Supabase update failed:', msg);
+      throw new Error('Não foi possível atualizar o perfil: ' + msg);
     }
-  }
+  },
+
+  deleteUser: async (userId: string) => {
+    if (!supabase) throw new Error('Serviço indisponível.');
+    // NOTE: deleting the `profiles` row does not delete the auth user. For a
+    // complete deletion, the backend should also call
+    // `supabase.auth.admin.deleteUser(userId)` from a privileged edge function.
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
+
+  setUserStatus: async (userId: string, status: 'active' | 'inactive') => {
+    if (!supabase) throw new Error('Serviço indisponível.');
+    const { error } = await supabase.from('profiles').update({ status }).eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
+
+  setUserRole: async (userId: string, role: UserRole) => {
+    if (!supabase) throw new Error('Serviço indisponível.');
+    const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
 };
 
 export const SettingsService = {
@@ -591,7 +609,7 @@ export const CommentService = {
     const idx = localComments.findIndex((c: any) => c.id === commentId);
     if (idx >= 0) {
       if (status === 'rejected') {
-        localComments.splice(idx, 1); // Remove rejected locally
+        localComments.splice(idx, 1);
       } else {
         localComments[idx].status = status;
       }
@@ -606,6 +624,47 @@ export const CommentService = {
         await supabase.from('comments').update({ status }).eq('id', commentId);
       }
     }
+  },
+
+  getAllComments: async (): Promise<Comment[]> => {
+    // 1. Try Remote
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('comments')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          return data.map((c: any) => ({
+            id: c.id,
+            userId: c.user_id,
+            userName: c.user_name,
+            userAvatar: c.user_avatar,
+            lessonId: c.lesson_id,
+            text: c.text,
+            timestamp: c.created_at,
+            status: c.status,
+            likes: c.likes || 0,
+            likedBy: c.liked_by || []
+          }));
+        }
+      } catch (e) {
+        console.warn('getAllComments remote failed', e);
+      }
+    }
+
+    // 2. localStorage fallback — collect all comments_* keys
+    const all: Comment[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('comments_')) {
+        try {
+          const items: Comment[] = JSON.parse(localStorage.getItem(key) || '[]');
+          all.push(...items);
+        } catch { /* ignore corrupted entries */ }
+      }
+    }
+    return all.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 };
 
@@ -728,7 +787,7 @@ export const WebhookService = {
       name,
       url,
       event_type: eventType,
-      secret: 'whsec_' + Math.random().toString(36).substr(2, 9),
+      secret: 'whsec_' + generateSecureToken(24),
       active: true
     }).select().single();
 

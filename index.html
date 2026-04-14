@@ -9,8 +9,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Fontes: Inter (UI) + JetBrains Mono (Tech) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
 
   <!-- Estilos Customizados -->
@@ -28,18 +30,42 @@
           colors: {
             brand: {
               primary: '#25D366',    // Verde Neon WhatsApp
+              'primary-bright': '#34E47A',
               secondary: '#1ea952',  // Verde escuro
-              dark: '#050505',       // Fundo Principal
-              card: '#0A0A0A',       // Surface Cards
-              surface: '#0F0F0F',    // Surface Highlight
-              hover: '#111111',      // Hover State
-              accent: '#25D366',     // Accent (compatibilidade)
+              dark: '#050707',       // Fundo Principal (midnight ink)
+              card: '#0B0D0C',       // Surface Cards
+              'card-raised': '#0F1211',
+              surface: '#0F1312',    // Surface Highlight
+              'surface-2': '#131817',
+              hover: '#161B1A',      // Hover State
+              inset: '#070909',
+              accent: '#25D366',
+              aurora: '#7BE8B3',     // Accent highlight
             },
             neon: {
               DEFAULT: '#25D366',
-              glow: 'rgba(37, 211, 102, 0.1)',
-              border: 'rgba(37, 211, 102, 0.2)',
+              bright: '#34E47A',
+              glow: 'rgba(37, 211, 102, 0.12)',
+              'glow-strong': 'rgba(37, 211, 102, 0.22)',
+              border: 'rgba(37, 211, 102, 0.22)',
+            },
+            ink: {
+              100: '#FFFFFF',
+              200: '#C8CFCD',
+              300: '#8A928F',
+              400: '#5C6361',
+              500: '#3D4441',
             }
+          },
+          boxShadow: {
+            'neon': '0 0 0 1px rgba(37, 211, 102, 0.35), 0 12px 40px -12px rgba(37, 211, 102, 0.22)',
+            'neon-lg': '0 0 0 1px rgba(37, 211, 102, 0.35), 0 24px 60px -12px rgba(37, 211, 102, 0.22)',
+            'premium-md': '0 8px 24px -8px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35)',
+            'premium-lg': '0 24px 48px -16px rgba(0, 0, 0, 0.7), 0 8px 16px -8px rgba(0, 0, 0, 0.4)',
+          },
+          backgroundImage: {
+            'gradient-premium': 'linear-gradient(135deg, #34E47A 0%, #25D366 45%, #1ea952 100%)',
+            'gradient-hero': 'radial-gradient(ellipse at top, rgba(37, 211, 102, 0.18) 0%, rgba(37, 211, 102, 0.04) 35%, transparent 70%)',
           },
           animation: {
             'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -67,9 +93,28 @@
       --color-secondary: #1ea952;
     }
 
+    html {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
+      width: 100vw;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 0;
       background-color: #050505;
       color: #E1E1E6;
+      overflow-x: hidden;
+    }
+
+    #root {
+      width: 100%;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
     }
 
     /* Background Grid Pattern */
@@ -166,9 +211,10 @@
 </head>
 
 <body>
-  <!-- Ambient Glow Orbs -->
-  <div class="glow-orb glow-orb-1"></div>
-  <div class="glow-orb glow-orb-2"></div>
+  <!-- Ambient Light Blobs (Cinema Mobile Dark style) -->
+  <div class="ambient-blob ambient-blob-1" aria-hidden="true"></div>
+  <div class="ambient-blob ambient-blob-2" aria-hidden="true"></div>
+  <div class="ambient-blob ambient-blob-3" aria-hidden="true"></div>
 
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>

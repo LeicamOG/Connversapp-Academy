@@ -11,29 +11,28 @@ interface CourseSelectorProps {
     onChange: (ids: string[]) => void;
 }
 
-const SortableCourseItem: React.FC<{ course: Course, onRemove: () => void }> = ({ course, onRemove }) => {
+const SortableCourseItem: React.FC<{ course: Course, index: number, onRemove: () => void }> = ({ course, index, onRemove }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: course.id });
-    const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+    const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 50 : 'auto' };
 
     return (
-        <div ref={setNodeRef} style={style} className="flex items-center gap-3 bg-brand-dark border border-white/10 p-3 rounded-lg mb-2">
-            <div className="text-gray-500 cursor-grab hover:text-white" {...attributes} {...listeners}>
-                <GripVertical size={16} />
+        <div ref={setNodeRef} style={style} className={`flex items-center gap-3 bg-brand-surface/50 border rounded-xl p-2.5 mb-2 transition-all ${isDragging ? 'border-brand-primary/40 shadow-neon' : 'border-white/8'}`}>
+            <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-mono text-gray-600 w-4 text-right">{index + 1}</span>
+                <button className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing p-0.5 transition-colors" {...attributes} {...listeners}>
+                    <GripVertical size={14} />
+                </button>
             </div>
-            <img src={course.coverImage} className="w-10 h-10 object-cover rounded" />
+            <img src={course.coverImage} className="w-9 h-9 object-cover rounded-lg shrink-0 ring-1 ring-white/10" />
             <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-white truncate">{course.title}</div>
+                <p className="text-[13px] font-semibold text-white truncate">{course.title}</p>
             </div>
             <button
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRemove();
-                }}
-                className="text-gray-500 hover:text-red-400 p-1 hover:bg-white/10 rounded transition-colors"
-                title="Remover curso"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+                className="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all shrink-0"
+                title="Remover"
             >
-                <X size={16} />
+                <X size={13} />
             </button>
         </div>
     );
@@ -71,37 +70,66 @@ export const CourseSelector: React.FC<CourseSelectorProps> = ({ selectedIds, onC
 
     return (
         <div className="space-y-4">
+            {/* Selected courses (draggable) */}
             <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Cursos Selecionados (Arraste para ordenar)</label>
-                <div className="bg-black/20 rounded-lg p-2 min-h-[50px]">
+                <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-gray-500">
+                        Cursos selecionados
+                    </label>
+                    {selectedCourses.length > 0 && (
+                        <span className="text-[10px] font-mono text-gray-600">{selectedCourses.length} curso{selectedCourses.length !== 1 ? 's' : ''} · arraste para reordenar</span>
+                    )}
+                </div>
+                <div className="bg-black/20 rounded-xl p-2 min-h-[52px] border border-white/5">
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                         <SortableContext items={selectedIds} strategy={verticalListSortingStrategy}>
-                            {selectedCourses.map(course => (
-                                <SortableCourseItem key={course.id} course={course} onRemove={() => { if (window.confirm('Tem certeza que deseja remover este curso?')) toggleSelection(course.id); }} />
+                            {selectedCourses.map((course, i) => (
+                                <SortableCourseItem
+                                    key={course.id}
+                                    course={course}
+                                    index={i}
+                                    onRemove={() => toggleSelection(course.id)}
+                                />
                             ))}
                         </SortableContext>
                     </DndContext>
-                    {selectedCourses.length === 0 && <div className="text-xs text-center text-gray-600 py-4">Nenhum curso selecionado</div>}
+                    {selectedCourses.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-5 gap-1">
+                            <p className="text-[12px] text-gray-600">Nenhum curso selecionado</p>
+                            <p className="text-[10px] text-gray-700">Escolha cursos abaixo</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* Available courses */}
             <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Adicionar Cursos</label>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-2">Adicionar cursos</label>
                 <input
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     placeholder="Buscar curso..."
-                    className="w-full bg-brand-dark border border-white/20 rounded px-3 py-2 text-xs text-white mb-2"
+                    className="w-full bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white placeholder-gray-600 focus:outline-none focus:border-brand-primary/40 transition-colors mb-2"
                 />
-                <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                <div className="max-h-44 overflow-y-auto space-y-1 pr-0.5 scrollbar-subtle">
                     {availableCourses.map(course => (
-                        <div key={course.id} onClick={() => toggleSelection(course.id)} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded cursor-pointer transition-colors group">
-                            <img src={course.coverImage} className="w-8 h-8 object-cover rounded" />
-                            <span className="text-xs text-gray-300 group-hover:text-white flex-1 truncate">{course.title}</span>
-                            <Plus size={14} className="text-brand-primary opacity-0 group-hover:opacity-100" />
-                        </div>
+                        <button
+                            key={course.id}
+                            onClick={() => toggleSelection(course.id)}
+                            className="w-full flex items-center gap-3 p-2.5 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group text-left"
+                        >
+                            <img src={course.coverImage} className="w-9 h-9 object-cover rounded-lg ring-1 ring-white/8 shrink-0" />
+                            <span className="text-[13px] text-gray-400 group-hover:text-white flex-1 truncate">{course.title}</span>
+                            <div className="w-6 h-6 rounded-lg bg-brand-primary/10 group-hover:bg-brand-primary/20 flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                                <Plus size={12} className="text-brand-primary" />
+                            </div>
+                        </button>
                     ))}
-                    {availableCourses.length === 0 && <div className="text-xs text-center text-gray-600 py-2">Nenhum curso disponível</div>}
+                    {availableCourses.length === 0 && (
+                        <p className="text-[12px] text-center text-gray-600 py-3">
+                            {searchTerm ? `Nenhum resultado para "${searchTerm}"` : 'Todos os cursos já foram adicionados'}
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

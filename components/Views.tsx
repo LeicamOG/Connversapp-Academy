@@ -4,11 +4,13 @@ import {
     Play, CheckCircle, Clock, ArrowLeft, Plus, Edit2,
     Trash, GripVertical, Loader2, Sparkles, LogIn, Image as ImageIcon, Layout as LayoutIcon, Type as TypeIcon,
     Save, RefreshCw, Palette, UserPlus, MoreHorizontal, UserX, Shield, Video, Layers, ChevronDown, ChevronUp, FileVideo, Youtube, Link as LinkIcon, X, Settings, List, Grid, Search, Filter, MonitorPlay, Upload, Camera, ToggleLeft, ToggleRight, User as UserIcon, ChevronRight, Check, FileText, Paperclip, Bold, Italic, ListOrdered, List as ListIcon, Download, MessageSquare, ThumbsUp, CornerDownRight, ShieldAlert, ArrowUp, ArrowDown, ChevronLeft, Heading1, Heading2, Quote, ShieldCheck, Pencil, AlertTriangle, ExternalLink,
-    AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Strikethrough, Underline, Link2, Send, BookOpen, Webhook, Key, Copy, Eye, XCircle, CheckSquare, AlertCircle, Globe, BarChart2, PieChart, Mail, ArrowRight
+    AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Strikethrough, Underline, Link2, Send, BookOpen, Webhook, Key, Copy, Eye, EyeOff, XCircle, CheckSquare, AlertCircle, Globe, BarChart2, PieChart, Mail, ArrowRight, Users
 } from 'lucide-react';
 import { Course, Lesson, Module, PageBlock, ThemeConfig, User, UserRole, BlockType, DisplayStyle, AspectRatio, VideoProvider, Attachment, Comment, BlockContent } from '../types';
 import { getFirstLesson, DEFAULT_AVATAR } from '../services/data';
 import { UserService, LayoutService, SettingsService, AuthService, CourseService, CommentService, ProgressService, WebhookService } from '../services/supabase';
+import { safeHtml } from '../services/sanitize';
+import { generateSecurePassword } from '../services/secureRandom';
 import { CourseSelector } from './CourseSelector';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, PieChart as RePieChart, Pie, Cell } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -41,6 +43,71 @@ import { CSS } from '@dnd-kit/utilities';
 
 // --- Animation Constants ---
 const buttonTap = { scale: 0.95 };
+
+// --- Default Author ---
+const DEFAULT_AUTHOR = 'Eduardo Maciel';
+
+// --- Mapeamento fixo por título do curso → capas temáticas ---
+const COURSE_COVER_MAP: Record<string, { cover: string; banner: string }> = {
+    'Configurações Iniciais': {
+        cover:  'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&q=90&w=1200',
+        banner: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&q=90&w=2000',
+    },
+    'Recursos Básicos': {
+        cover:  'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=90&w=1200',
+        banner: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=90&w=2000',
+    },
+    'Chatbot': {
+        cover:  'https://images.unsplash.com/photo-1531746790731-6c087fecd65a?auto=format&fit=crop&q=90&w=1200',
+        banner: 'https://images.unsplash.com/photo-1531746790731-6c087fecd65a?auto=format&fit=crop&q=90&w=2000',
+    },
+    'Sequências': {
+        cover:  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=90&w=1200',
+        banner: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=90&w=2000',
+    },
+    'IA de Atendimento': {
+        cover:  'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?auto=format&fit=crop&q=90&w=1200',
+        banner: 'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?auto=format&fit=crop&q=90&w=2000',
+    },
+};
+
+// --- Cover images — temáticas por módulo (dark, editorial, comunicação) ---
+// M1: Configurações Iniciais — smartphone business setup
+// M2: Recursos Básicos — mobile messaging features
+// M3: Chatbot — automation / bot dark
+// M4: Sequências — flow / drip campaign
+// M5: IA de Atendimento — artificial intelligence
+const COURSE_COVERS = [
+  'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&q=90&w=1200', // M1 — WhatsApp phone dark
+  'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=90&w=1200', // M2 — smartphone tela escura
+  'https://images.unsplash.com/photo-1531746790731-6c087fecd65a?auto=format&fit=crop&q=90&w=1200', // M3 — chatbot / code dark
+  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=90&w=1200', // M4 — analytics / sequências
+  'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?auto=format&fit=crop&q=90&w=1200', // M5 — AI neural dark
+];
+
+const COURSE_BANNERS = [
+  'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&q=90&w=2000',
+  'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=90&w=2000',
+  'https://images.unsplash.com/photo-1531746790731-6c087fecd65a?auto=format&fit=crop&q=90&w=2000',
+  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=90&w=2000',
+  'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?auto=format&fit=crop&q=90&w=2000',
+];
+
+// Picks a deterministic image based on a seed string
+function pickImage(arr: string[], seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return arr[h % arr.length];
+}
+
+// Module gradient covers based on index (no external request needed)
+const MODULE_GRADIENTS = [
+  'linear-gradient(135deg, #0B1A10 0%, #0F2A18 50%, #0B3D20 100%)',
+  'linear-gradient(135deg, #0D1117 0%, #0E1F33 50%, #0A2A4A 100%)',
+  'linear-gradient(135deg, #140F1A 0%, #1E1030 50%, #2A1040 100%)',
+  'linear-gradient(135deg, #1A0F0F 0%, #2A1010 50%, #3D1515 100%)',
+  'linear-gradient(135deg, #0F1A14 0%, #1A2E1E 50%, #0F3322 100%)',
+];
 
 // --- Helper Functions ---
 const convertToEmbedUrl = (url: string, provider: VideoProvider): string => {
@@ -145,57 +212,79 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
 
     return (
         <div className="mb-4">
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">{label}</label>
-            <div className="bg-brand-dark border border-white/20 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-gray-500">{label}</label>
+                {resolutionHint && (
+                    <span className="text-[9px] font-mono text-brand-primary/80 bg-brand-primary/8 border border-brand-primary/20 px-2 py-0.5 rounded-md">
+                        {resolutionHint}
+                    </span>
+                )}
+            </div>
+
+            <div className="bg-brand-dark/80 border border-white/8 rounded-xl overflow-hidden">
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
 
+                {/* Tab bar */}
                 {allowedTabs.length > 1 && (
-                    <div className="flex border-b border-white/20 overflow-x-auto">
-                        {allowedTabs.includes('upload') && <button onClick={() => setActiveTab('upload')} className={`flex-1 py-3 px-2 text-[10px] font-bold uppercase transition-colors ${activeTab === 'upload' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>Upload</button>}
-                        {allowedTabs.includes('link') && <button onClick={() => setActiveTab('link')} className={`flex-1 py-3 px-2 text-[10px] font-bold uppercase transition-colors ${activeTab === 'link' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>Link</button>}
-                        {allowedTabs.includes('ai') && <button onClick={() => setActiveTab('ai')} className={`flex-1 py-3 px-2 text-[10px] font-bold uppercase transition-colors ${activeTab === 'ai' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Sparkles className="inline w-3 h-3 mr-1" />IA</button>}
+                    <div className="flex border-b border-white/8">
+                        {allowedTabs.includes('upload') && (
+                            <button onClick={() => setActiveTab('upload')} className={`flex-1 py-2.5 px-2 text-[10px] font-bold font-mono uppercase tracking-wider transition-colors ${activeTab === 'upload' ? 'bg-white/8 text-white border-b border-brand-primary' : 'text-gray-500 hover:text-gray-300 hover:bg-white/4'}`}>
+                                <Upload size={10} className="inline mr-1" />Upload
+                            </button>
+                        )}
+                        {allowedTabs.includes('link') && (
+                            <button onClick={() => setActiveTab('link')} className={`flex-1 py-2.5 px-2 text-[10px] font-bold font-mono uppercase tracking-wider transition-colors ${activeTab === 'link' ? 'bg-white/8 text-white border-b border-brand-primary' : 'text-gray-500 hover:text-gray-300 hover:bg-white/4'}`}>
+                                <LinkIcon size={10} className="inline mr-1" />Link
+                            </button>
+                        )}
+                        {allowedTabs.includes('ai') && (
+                            <button onClick={() => setActiveTab('ai')} className={`flex-1 py-2.5 px-2 text-[10px] font-bold font-mono uppercase tracking-wider transition-colors ${activeTab === 'ai' ? 'bg-white/8 text-white border-b border-brand-primary' : 'text-gray-500 hover:text-gray-300 hover:bg-white/4'}`}>
+                                <Sparkles size={10} className="inline mr-1" />IA
+                            </button>
+                        )}
                     </div>
                 )}
 
-                <div className="p-4">
+                <div className="p-3.5 space-y-3">
                     {activeTab === 'link' && (
-                        <div className="flex gap-2">
-                            <input value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 bg-black border border-white/20 rounded px-3 py-2 text-white text-xs focus:border-brand-primary outline-none" placeholder="https://..." />
-                        </div>
+                        <input
+                            value={value}
+                            onChange={(e) => onChange(e.target.value)}
+                            className="w-full bg-brand-surface/50 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white font-mono focus:outline-none focus:border-brand-primary/40 transition-colors placeholder-gray-700"
+                            placeholder="https://..."
+                        />
                     )}
+
                     {activeTab === 'upload' && (
-                        <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-white/20 rounded p-4 text-center cursor-pointer hover:bg-white/5 transition-colors">
-                            <Upload size={24} className="mx-auto text-gray-400 mb-2" />
-                            <span className="text-xs text-gray-500">Clique para selecionar um arquivo</span>
+                        <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed border-white/10 hover:border-brand-primary/30 rounded-xl p-5 text-center cursor-pointer hover:bg-brand-primary/3 transition-all group"
+                        >
+                            <Upload size={20} className="mx-auto text-gray-600 group-hover:text-brand-primary mb-2 transition-colors" />
+                            <p className="text-[12px] text-gray-500 group-hover:text-gray-300 transition-colors">Clique para selecionar</p>
                         </div>
                     )}
+
                     {activeTab === 'ai' && (
                         <div className="space-y-3">
-                            <div className="flex items-center gap-2 text-purple-400 mb-2">
-                                <Sparkles className="w-4 h-4" />
-                                <span className="text-xs font-bold">Gerador de Imagens com IA</span>
+                            <div className="flex items-center gap-2 text-purple-400">
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-bold font-mono uppercase tracking-wider">Gerador com IA</span>
                             </div>
-
                             {previewUrl ? (
-                                <div className="space-y-3 animate-in fade-in zoom-in duration-200">
-                                    <div className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group">
+                                <div className="space-y-2">
+                                    <div className="relative aspect-video rounded-lg overflow-hidden border border-white/10 group">
                                         <img key={previewUrl} src={previewUrl} className="w-full h-full object-cover" alt="AI Preview" />
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <a href={previewUrl} target="_blank" rel="noreferrer" className="text-white text-xs underline">Ver Original</a>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setPreviewUrl(null)}
-                                            className="flex-1 py-2 px-3 bg-white/10 text-gray-300 hover:text-white hover:bg-white/20 rounded text-xs font-bold transition-colors"
-                                        >
+                                        <button onClick={() => setPreviewUrl(null)} className="flex-1 py-2 px-3 bg-white/8 text-gray-300 hover:text-white hover:bg-white/15 rounded-xl text-[11px] font-bold transition-colors">
                                             Cancelar
                                         </button>
-                                        <button
-                                            onClick={() => { onChange(previewUrl); setPreviewUrl(null); setAiPrompt(''); }}
-                                            className="flex-1 py-2 px-3 bg-purple-500 text-white hover:bg-purple-600 rounded text-xs font-bold transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <CheckCircle size={14} /> Usar Imagem
+                                        <button onClick={() => { onChange(previewUrl); setPreviewUrl(null); setAiPrompt(''); }} className="flex-1 py-2 px-3 bg-purple-500/90 text-white hover:bg-purple-500 rounded-xl text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5">
+                                            <CheckCircle size={12} /> Usar
                                         </button>
                                     </div>
                                 </div>
@@ -204,53 +293,43 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
                                     <textarea
                                         value={aiPrompt}
                                         onChange={(e) => setAiPrompt(e.target.value)}
-                                        placeholder="Descreva a imagem que deseja gerar... Ex: Uma ilustração moderna de estudantes aprendendo com tecnologia"
-                                        className="w-full bg-black border border-white/20 rounded px-3 py-2 text-white text-xs focus:border-brand-primary outline-none resize-none"
+                                        placeholder="Descreva a imagem... Ex: Estudantes aprendendo com tecnologia"
+                                        className="w-full bg-brand-surface/50 border border-white/8 rounded-xl px-3 py-2.5 text-[12px] text-white focus:border-brand-primary/40 outline-none resize-none transition-colors placeholder-gray-700"
                                         rows={3}
                                     />
                                     <button
                                         onClick={handleAIGenerate}
                                         disabled={isGeneratingAI || !aiPrompt.trim()}
-                                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded text-xs flex items-center justify-center gap-2 transition-all"
+                                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-xl text-[11px] flex items-center justify-center gap-2 transition-all"
                                     >
-                                        {isGeneratingAI ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Gerando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles className="w-4 h-4" />
-                                                Gerar com IA
-                                            </>
-                                        )}
+                                        {isGeneratingAI ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Gerando...</> : <><Sparkles className="w-3.5 h-3.5" />Gerar com IA</>}
                                     </button>
-                                    {resolutionHint && (
-                                        <div className="bg-white/5 border border-white/10 rounded p-2 text-center">
-                                            <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Resolução da Imagem</p>
-                                            <p className="text-xs text-brand-primary font-mono font-bold">{resolutionHint}</p>
-                                        </div>
-                                    )}
                                 </>
                             )}
                         </div>
                     )}
                 </div>
 
+                {/* Image preview — resolution hint only on hover */}
                 {value && (
-                    <div className="relative group min-h-[200px] border-t border-white/20 bg-black/50 overflow-hidden">
-                        <img src={value} className="w-full h-full object-contain max-h-[400px]" alt="Preview" />
-
-                        <div
-                            onClick={() => (activeTab === 'upload' || allowedTabs.includes('upload')) ? fileInputRef.current?.click() : null}
-                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer"
-                        >
-                            <Edit2 size={24} className="mb-2" />
-                            <span className="font-bold text-sm">Clique para alterar</span>
-                            {resolutionHint && <span className="text-xs text-gray-300 mt-1">{resolutionHint}</span>}
+                    <div className="relative group border-t border-white/6 bg-black/40 overflow-hidden">
+                        <img src={value} className="w-full object-contain max-h-[220px]" alt="Preview" />
+                        <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2.5">
+                            <button
+                                onClick={() => allowedTabs.includes('upload') ? fileInputRef.current?.click() : setActiveTab('link')}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm rounded-xl text-white text-[12px] font-semibold transition-colors"
+                            >
+                                <Edit2 size={13} /> Alterar imagem
+                            </button>
+                            {resolutionHint && (
+                                <span className="text-[10px] font-mono text-brand-primary/90 bg-black/50 px-2.5 py-1 rounded-lg border border-brand-primary/20">
+                                    {resolutionHint}
+                                </span>
+                            )}
                         </div>
-
-                        <button onClick={(e) => { e.stopPropagation(); onChange(''); }} className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110"><X size={12} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); onChange(''); }} className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-500/80 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all z-20">
+                            <X size={11} />
+                        </button>
                     </div>
                 )}
             </div>
@@ -273,7 +352,17 @@ const RichTextEditor: React.FC<{ value: string, onChange: (val: string) => void 
     const editorRef = useRef<HTMLDivElement>(null);
     const execCmd = (command: string, arg: string = '') => { document.execCommand(command, false, arg); if (editorRef.current) { editorRef.current.focus(); } };
     const preventFocusLoss = (e: React.MouseEvent) => { e.preventDefault(); };
-    const handleLink = () => { const url = prompt("Digite a URL:"); if (url) execCmd('createLink', url); };
+    const handleLink = () => {
+        const url = prompt("Digite a URL:");
+        if (!url) return;
+        // Block javascript: and data: URIs to prevent XSS via link clicks
+        const scheme = url.trim().toLowerCase();
+        if (scheme.startsWith('javascript:') || scheme.startsWith('data:')) {
+            alert('URL inválida. Use http:// ou https://');
+            return;
+        }
+        execCmd('createLink', url);
+    };
 
     // Simple drag & drop for images
     const handleDrop = (e: React.DragEvent) => {
@@ -503,43 +592,102 @@ const LessonEditorModal: React.FC<{ isOpen: boolean, lesson: Lesson, isNew: bool
 
 function SortableModuleItem({ module, mIdx, onUpdateModule, onDeleteModule, lessons, onAddLesson, onEditLesson, onDeleteLesson }: any) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: module.id });
-    const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+    const style = {
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        boxShadow: isDragging ? '0 24px 48px -16px rgba(0,0,0,0.6), 0 0 0 1px rgba(37,211,102,0.35)' : undefined,
+    };
 
     return (
-
-        <div ref={setNodeRef} style={style} className="bg-brand-dark border border-white/10 rounded-lg mb-4">
-            <div className="p-4 flex items-center gap-3 border-b border-white/5">
-                <div className="text-gray-500 cursor-grab p-2 hover:text-white" {...attributes} {...listeners}><GripVertical size={20} /></div>
+        <div ref={setNodeRef} style={style} className="module-card mb-4">
+            <div className="module-card-header">
+                <div className="drag-handle-premium" {...attributes} {...listeners}>
+                    <GripVertical size={16} />
+                </div>
+                <div className="module-number">{String(mIdx + 1).padStart(2, '0')}</div>
                 <input
                     value={module.title}
                     onChange={(e) => onUpdateModule(e.target.value)}
-                    className="flex-1 bg-transparent text-white font-bold text-lg focus:outline-none border-b border-transparent focus:border-brand-primary placeholder:text-gray-600"
-                    placeholder="Nome do Módulo"
+                    className="flex-1 bg-transparent text-white font-bold text-[15px] tracking-tight focus:outline-none placeholder:text-gray-600 min-w-0"
+                    placeholder="Nome do módulo"
                 />
-                <button onClick={() => onDeleteModule(module.id)} className="text-gray-500 hover:text-red-400 p-2"><Trash size={18} /></button>
+                <div className="hidden md:flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-gray-500 shrink-0">
+                    {lessons.length} {lessons.length === 1 ? 'aula' : 'aulas'}
+                </div>
+                <button
+                    onClick={() => onDeleteModule(module.id)}
+                    className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Excluir módulo"
+                >
+                    <Trash size={15} />
+                </button>
             </div>
-            <div className="p-4 space-y-2">
+            <div className="p-3 space-y-1.5">
                 <SortableContext items={lessons.map((l: any) => l.id)} strategy={verticalListSortingStrategy}>
+                    {lessons.length === 0 && (
+                        <div className="text-center py-6 text-xs text-gray-500 italic">Nenhuma aula ainda. Adicione a primeira abaixo.</div>
+                    )}
                     {lessons.map((lesson: any, lIdx: number) => (
-                        <SortableLessonItem key={lesson.id} lesson={lesson} lIdx={lIdx} onEdit={() => onEditLesson(lesson)} onDelete={() => onDeleteLesson(mIdx, lesson.id)} />
+                        <SortableLessonItem
+                            key={lesson.id}
+                            lesson={lesson}
+                            lIdx={lIdx}
+                            onEdit={() => onEditLesson(lesson)}
+                            onDelete={() => onDeleteLesson(mIdx, lesson.id)}
+                        />
                     ))}
                 </SortableContext>
-                <button onClick={() => onAddLesson(mIdx)} className="w-full py-3 border border-dashed border-white/20 rounded text-xs text-gray-400 hover:text-white mt-4 flex justify-center items-center gap-2 transition-colors hover:border-brand-primary"><Plus size={14} /> Adicionar Aula</button>
+                <button
+                    onClick={() => onAddLesson(mIdx)}
+                    className="w-full py-3 mt-2 border border-dashed border-white/10 hover:border-brand-primary/50 hover:bg-brand-primary/5 rounded-xl text-xs text-gray-400 hover:text-brand-primary font-mono uppercase tracking-wider flex justify-center items-center gap-2 transition-all"
+                >
+                    <Plus size={14} /> Adicionar aula
+                </button>
             </div>
         </div>
     );
 }
 
-function SortableLessonItem({ lesson, onEdit, onDelete }: any) {
+function SortableLessonItem({ lesson, lIdx, onEdit, onDelete }: any) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lesson.id });
-    const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+    const style = {
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        boxShadow: isDragging ? '0 12px 32px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(37,211,102,0.35)' : undefined,
+    };
     return (
-        <div ref={setNodeRef} style={style} className="flex items-center gap-3 p-3 bg-brand-card rounded border border-white/10 group hover:border-white/30 transition-colors">
-            <div className="text-gray-600 cursor-grab p-1 hover:text-white" {...attributes} {...listeners}><GripVertical size={16} /></div>
-            <div className="flex-1 text-sm text-gray-200 font-medium">{lesson.title}</div>
-            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={onEdit} className="text-blue-400 hover:text-blue-300 p-2"><Edit2 size={16} /></button>
-                <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-gray-500 hover:text-red-400 p-2"><Trash size={16} /></button>
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="group flex items-center gap-3 px-3 py-2.5 bg-brand-card-raised/60 hover:bg-brand-card-raised rounded-xl border border-white/5 hover:border-white/10 transition-all"
+        >
+            <div className="drag-handle-premium !w-7 !h-7" {...attributes} {...listeners}>
+                <GripVertical size={14} />
+            </div>
+            <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-[10px] font-mono font-bold text-gray-500 shrink-0">
+                {String((lIdx ?? 0) + 1).padStart(2, '0')}
+            </div>
+            <div className="w-7 h-7 rounded-lg bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0">
+                {lesson.type === 'video' ? <Play size={12} /> : <FileText size={12} />}
+            </div>
+            <div className="flex-1 text-[13px] text-gray-100 font-medium truncate">{lesson.title}</div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={onEdit}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors"
+                    title="Editar"
+                >
+                    <Edit2 size={14} />
+                </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Excluir"
+                >
+                    <Trash size={14} />
+                </button>
             </div>
         </div>
     );
@@ -684,117 +832,319 @@ const CourseContentEditor: React.FC<{ course: Course, isSaving?: boolean, onBack
         setEditingLesson(null);
     };
 
+    const totalLessons = formData.modules.reduce((acc, m) => acc + m.lessons.length, 0);
+
     return (
-        <div className="bg-brand-card min-h-screen pb-20">
+        <div className="min-h-screen pb-24">
             {confirmModal && <ConfirmDialog {...confirmModal} onCancel={() => setConfirmModal(null)} />}
-            <div className="bg-brand-dark/50 border-b border-white/10 p-4 flex justify-between items-center sticky top-0 z-20 backdrop-blur-md">
-                <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white"><ArrowLeft size={20} /></button>
-                    <h2 className="text-lg font-bold text-white">{formData.title}</h2>
+            <div className="header-premium border-b border-white/5 px-6 lg:px-10 h-16 flex justify-between items-center sticky top-0 z-20">
+                <div className="flex items-center gap-4 min-w-0">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 px-3 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 hover:border-brand-primary/30 text-gray-300 hover:text-white text-xs font-semibold transition-colors shrink-0"
+                    >
+                        <ArrowLeft size={14} /> Voltar
+                    </button>
+                    <div className="min-w-0">
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-brand-primary leading-none">Editando curso</div>
+                        <h2 className="text-[15px] font-bold text-white truncate leading-tight mt-0.5">{formData.title || 'Sem título'}</h2>
+                    </div>
                 </div>
                 <button
                     disabled={isSaving}
                     onClick={() => onSave(formData)}
-                    className="px-6 py-2 bg-brand-primary text-brand-dark font-bold text-sm rounded flex items-center gap-2 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-primary-premium disabled:opacity-60 disabled:cursor-not-allowed text-sm"
                 >
                     {isSaving ? (
                         <>
-                            <div className="w-4 h-4 border-2 border-brand-dark border-t-transparent rounded-full animate-spin"></div>
-                            Salvando...
+                            <Loader2 className="w-4 h-4 animate-spin" /> Salvando...
                         </>
                     ) : (
                         <>
-                            <Save size={16} /> Salvar
+                            <Save size={15} /> Salvar
                         </>
                     )}
                 </button>
             </div>
-            <div className="max-w-4xl mx-auto p-8 space-y-6">
-                <input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded-xl px-4 py-3 text-white text-xl font-bold mb-2 placeholder:text-gray-600" placeholder="Título do Curso" />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <ImagePicker label="Imagem de Capa (Quadrada)" value={formData.coverImage} onChange={val => setFormData({ ...formData, coverImage: val })} resolutionHint="1:1 - ex: 500x500px" allowedTabs={['upload', 'link', 'ai']} />
-                    <ImagePicker label="Banner Original (Wide)" value={formData.bannerImage} onChange={val => setFormData({ ...formData, bannerImage: val })} resolutionHint="16:9 - ex: 1920x1080px" allowedTabs={['upload', 'link', 'ai']} />
+            <div className="max-w-5xl mx-auto p-6 lg:p-10 space-y-8">
+                {/* Identity panel */}
+                <div className="panel-premium p-6 lg:p-8 space-y-6">
+                    <div className="eyebrow">Identidade do curso</div>
+                    <input
+                        value={formData.title}
+                        onChange={e => setFormData({ ...formData, title: e.target.value })}
+                        className="w-full bg-transparent border-0 border-b border-white/10 focus:border-brand-primary/60 focus:outline-none px-0 py-3 text-white text-2xl md:text-3xl font-bold tracking-tight placeholder:text-gray-600 transition-colors"
+                        placeholder="Nome do curso..."
+                    />
+
+                    {/* Author field */}
+                    <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-primary mb-2">Autor / Criador</label>
+                        <input
+                            value={formData.author || DEFAULT_AUTHOR}
+                            onChange={e => setFormData({ ...formData, author: e.target.value })}
+                            className="w-full bg-brand-surface/50 border border-white/8 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-gray-600 focus:border-brand-primary/60 focus:outline-none transition-colors"
+                            placeholder={DEFAULT_AUTHOR}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <ImagePicker label="Imagem de Capa" value={formData.coverImage || pickImage(COURSE_COVERS, formData.id)} onChange={val => setFormData({ ...formData, coverImage: val })} resolutionHint="800×800px · quadrada 1:1 · min 500px" allowedTabs={['upload', 'link', 'ai']} />
+                        <ImagePicker label="Banner do Curso" value={formData.bannerImage || pickImage(COURSE_BANNERS, formData.id + 'b')} onChange={val => setFormData({ ...formData, bannerImage: val })} resolutionHint="1920×1080px · proporção 16:9 · min 1280px" allowedTabs={['upload', 'link', 'ai']} />
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-primary mb-3">Descrição do curso</label>
+                        <RichTextEditor value={formData.description} onChange={val => setFormData({ ...formData, description: val })} />
+                    </div>
                 </div>
 
-                <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Descrição do Curso</label>
-                    <RichTextEditor value={formData.description} onChange={val => setFormData({ ...formData, description: val })} />
+                {/* Structure panel */}
+                <div className="panel-premium p-6 lg:p-8">
+                    <div className="flex items-end justify-between gap-4 mb-6 pb-5 border-b border-white/5">
+                        <div>
+                            <div className="eyebrow mb-2">Currículo</div>
+                            <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                                <Layers size={18} className="text-brand-primary" /> Estrutura do curso
+                            </h3>
+                        </div>
+                        <div className="eyebrow-muted hidden md:block">{formData.modules.length} módulos · {totalLessons} aulas</div>
+                    </div>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <SortableContext items={formData.modules.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                            {formData.modules.map((module, idx) => (
+                                <SortableModuleItem
+                                    key={module.id}
+                                    module={module}
+                                    mIdx={idx}
+                                    lessons={module.lessons}
+                                    onUpdateModule={(title: string) => updateModule(module.id, title)}
+                                    onDeleteModule={deleteModule}
+                                    onAddLesson={() => addLesson(idx)}
+                                    onEditLesson={(l: Lesson) => setEditingLesson({ lesson: l, moduleIndex: idx })}
+                                    onDeleteLesson={(mIdx: number, lId: string) => deleteLesson(mIdx, lId)}
+                                />
+                            ))}
+                        </SortableContext>
+                    </DndContext>
+                    <button
+                        onClick={addModule}
+                        className="w-full py-5 border-2 border-dashed border-white/10 rounded-2xl text-gray-400 hover:text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all flex flex-col items-center gap-2 mt-4"
+                    >
+                        <Plus size={22} />
+                        <span className="text-[11px] font-mono uppercase tracking-wider font-bold">Adicionar novo módulo</span>
+                    </button>
                 </div>
-
-                <div className="border-t border-white/10 pt-6"></div>
-
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Layers size={20} /> Estrutura do Curso</h3>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={formData.modules.map(m => m.id)} strategy={verticalListSortingStrategy}>
-                        {formData.modules.map((module, idx) => (
-                            <SortableModuleItem
-                                key={module.id}
-                                module={module}
-                                mIdx={idx}
-                                lessons={module.lessons}
-                                onUpdateModule={(title: string) => updateModule(module.id, title)}
-                                onDeleteModule={deleteModule}
-                                onAddLesson={() => addLesson(idx)}
-                                onEditLesson={(l: Lesson) => setEditingLesson({ lesson: l, moduleIndex: idx })}
-                                onDeleteLesson={(mIdx: number, lId: string) => deleteLesson(mIdx, lId)}
-                            />
-                        ))}
-                    </SortableContext>
-                </DndContext>
-                <button onClick={addModule} className="w-full py-4 border-2 border-dashed border-white/20 rounded-xl text-gray-400 font-bold mt-4 hover:border-brand-primary hover:text-white transition-colors flex flex-col items-center gap-2"><Plus size={24} /> Adicionar Novo Módulo</button>
             </div>
             {editingLesson && <LessonEditorModal isOpen={true} lesson={editingLesson.lesson} isNew={!formData.modules[editingLesson.moduleIndex].lessons.find(l => l.id === editingLesson.lesson.id)} onClose={() => setEditingLesson(null)} onSave={saveLesson} />}
         </div>
     );
 };
 
+function hqImage(url: string, width = 1400): string {
+    if (!url) return url;
+    try {
+        const u = new URL(url);
+        if (u.hostname.includes('unsplash.com')) {
+            u.searchParams.set('auto', 'format,compress');
+            u.searchParams.set('fit', 'crop');
+            u.searchParams.set('q', '90');
+            u.searchParams.set('w', String(width));
+            u.searchParams.set('dpr', '2');
+            return u.toString();
+        }
+    } catch { /* not a valid URL */ }
+    return url;
+}
+
+const PremiumCourseCard: React.FC<{ course: Course, onClick: () => void, index?: number }> = ({ course, onClick, index = 0 }) => {
+    const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
+    const progress = course.progress || 0;
+    const cover = hqImage(course.coverImage || pickImage(COURSE_COVERS, course.id + course.title));
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
+            onClick={onClick}
+            className="course-card-premium"
+        >
+            <div className="cover">
+                <img src={cover} alt={course.title} loading="lazy" decoding="async" />
+                <div className="cover-badge">{course.modules.length} módulos</div>
+            </div>
+            <div className="body">
+                <h3>{course.title}</h3>
+                <div className="meta">
+                    <span>{totalLessons} aulas</span>
+                    <span className="meta-dot" />
+                    <span>{course.author || DEFAULT_AUTHOR}</span>
+                </div>
+                {progress > 0 && (
+                    <div className="progress">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-brand-primary">{progress}% concluído</span>
+                        </div>
+                        <div className="progress-track">
+                            <div className="progress-fill" style={{ width: `${progress}%` }} />
+                        </div>
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+};
+
 export const HomeView: React.FC<{ courses: Course[], onCourseClick: (id: string) => void, searchQuery: string }> = ({ courses, onCourseClick, searchQuery }) => {
     const [blocks, setBlocks] = useState<PageBlock[]>([]);
     useEffect(() => { LayoutService.getBlocks().then(setBlocks); }, []);
-    const filteredCourses = courses.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.trim().toLowerCase();
+    const filteredCourses = q ? courses.filter((c: Course) =>
+        c.title.toLowerCase().includes(q) ||
+        (c.description || '').toLowerCase().includes(q) ||
+        (c.author || '').toLowerCase().includes(q)
+    ) : courses;
+    const totalLessons = courses.reduce((acc, c) => acc + c.modules.reduce((a, m) => a + m.lessons.length, 0), 0);
+
+    // When searching, always show search results regardless of blocks
+    if (q) {
+        return (
+            <div className="pb-24 px-4 lg:px-8 max-w-7xl mx-auto pt-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                >
+                    <div className="section-heading mb-6">
+                        <div>
+                            <div className="eyebrow mb-2">Busca</div>
+                            <h2 className="tracking-tight">Resultados para <span className="text-brand-primary">"{searchQuery}"</span></h2>
+                        </div>
+                        <div className="eyebrow-muted">{filteredCourses.length} {filteredCourses.length === 1 ? 'resultado' : 'resultados'}</div>
+                    </div>
+                    {filteredCourses.length === 0 ? (
+                        <div className="panel-premium p-14 flex flex-col items-center text-center gap-3">
+                            <Search className="w-10 h-10 text-gray-700" />
+                            <p className="text-gray-300 font-semibold">Nenhum resultado encontrado</p>
+                            <p className="text-gray-600 text-sm">Tente buscar por outro termo ou verifique a ortografia.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                            {filteredCourses.map((course, i) => (
+                                <PremiumCourseCard key={course.id} course={course} index={i} onClick={() => onCourseClick(course.id)} />
+                            ))}
+                        </div>
+                    )}
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
-        <div className="pb-20">
+        <div className="pb-24">
             {blocks.length === 0 && (
                 <div className="px-4 lg:px-8 max-w-7xl mx-auto pt-8">
-                    <h2 className="text-2xl font-bold text-white mb-6">Cursos Disponíveis</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredCourses.map(course => (
-                            <div key={course.id} onClick={() => onCourseClick(course.id)} className="bg-brand-card rounded-xl overflow-hidden border border-white/5 cursor-pointer hover:border-brand-primary/30 transition-all">
-                                <div className="relative aspect-video"><img src={course.coverImage} className="w-full h-full object-cover" /></div>
-                                <div className="p-4"><h3 className="font-bold text-white">{course.title}</h3></div>
+                    {/* Premium hero strip */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                        className="hero-premium mb-10"
+                    >
+                        <div className="eyebrow mb-4">Área de Membros Premium</div>
+                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 max-w-3xl leading-[1.1]">
+                            <span className="text-white">Domine o </span>
+                            <span className="text-gradient-premium">WhatsApp Business</span>
+                            <span className="text-white"> como um especialista.</span>
+                        </h1>
+                        <p className="text-gray-300 text-base md:text-lg max-w-2xl mb-6 leading-relaxed">
+                            Acesso exclusivo aos cursos, automações e playbooks do ecossistema Conversapp. Conteúdo liberado para acelerar suas conversões.
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                            <div className="stat-chip">
+                                <div className="dot" />
+                                <span className="font-mono uppercase tracking-wider">{courses.length} cursos ativos</span>
                             </div>
-                        ))}
+                            <div className="stat-chip">
+                                <div className="dot" />
+                                <span className="font-mono uppercase tracking-wider">{totalLessons} aulas</span>
+                            </div>
+                            <div className="stat-chip">
+                                <div className="dot" />
+                                <span className="font-mono uppercase tracking-wider">Acesso vitalício</span>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    {/* Course grid */}
+                    <div className="section-heading">
+                        <div>
+                            <div className="eyebrow mb-2">Biblioteca</div>
+                            <h2 className="tracking-tight">Cursos disponíveis para você</h2>
+                        </div>
+                        <div className="eyebrow-muted hidden md:block">{filteredCourses.length} {filteredCourses.length === 1 ? 'curso' : 'cursos'}</div>
                     </div>
+                    {filteredCourses.length === 0 ? (
+                        <div className="panel-premium p-12 text-center">
+                            <BookOpen className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                            <p className="text-gray-400">Nenhum curso encontrado {searchQuery && `para "${searchQuery}"`}.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                            {filteredCourses.map((course, i) => (
+                                <PremiumCourseCard key={course.id} course={course} index={i} onClick={() => onCourseClick(course.id)} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
             {blocks.map(block => (
                 <div key={block.id}>
                     {block.type === 'hero_banner' && (
-                        <div className="relative h-[500px] w-full flex items-center justify-center overflow-hidden mb-8 group">
-                            <img src={block.content.imageUrl} className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="relative h-[480px] w-full flex items-center justify-center overflow-hidden mb-10 group"
+                        >
+                            <img src={block.content.imageUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-brand-dark/40 via-brand-dark/60 to-brand-dark" />
+                            <div className="absolute inset-0 bg-gradient-hero" />
                             <div className="relative z-10 text-center max-w-4xl px-4">
-                                <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">{block.content.title}</h1>
-                                <p className="text-xl text-gray-200 mb-8">{block.content.description}</p>
-                                {block.content.showCta && <button className="bg-brand-primary text-brand-dark px-8 py-3 rounded-full font-bold text-lg hover:brightness-110">{block.content.ctaText}</button>}
+                                <div className="eyebrow justify-center mb-4 mx-auto" style={{ display: 'inline-flex' }}>Em destaque</div>
+                                <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight leading-[1.05] drop-shadow-lg">{block.content.title}</h1>
+                                <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-2xl mx-auto">{block.content.description}</p>
+                                {block.content.showCta && (
+                                    <button className="btn-primary-premium text-base">
+                                        {block.content.ctaText} <ArrowRight size={18} />
+                                    </button>
+                                )}
                             </div>
-                        </div>
+                        </motion.div>
                     )}
-                    {block.type === 'content_list' && (
-                        <div className="px-4 lg:px-8 max-w-7xl mx-auto mb-12">
-                            <h2 className="text-2xl font-bold text-white mb-6">{block.content.title}</h2>
-                            <div className={`grid gap-6 ${block.content.displayStyle === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' : 'flex overflow-x-auto pb-4 snap-x'}`}>
-                                {filteredCourses.map(course => (
-                                    <div key={course.id} onClick={() => onCourseClick(course.id)} className={`bg-brand-card rounded-xl overflow-hidden border border-white/5 cursor-pointer hover:border-brand-primary/30 transition-all ${block.content.displayStyle === 'grid' ? '' : 'min-w-[300px] snap-center'}`}>
-                                        <div className="relative aspect-video"><img src={course.coverImage} className="w-full h-full object-cover" /></div>
-                                        <div className="p-4"><h3 className="font-bold text-white">{course.title}</h3></div>
+                    {block.type === 'content_list' && (() => {
+                        const blockCourses = block.content.sourceType === 'specific_courses' && block.content.selectedIds?.length
+                            ? (block.content.selectedIds as string[]).map((id: string) => courses.find(c => c.id === id)).filter(Boolean) as Course[]
+                            : filteredCourses;
+                        return (
+                            <div className="px-4 lg:px-8 max-w-7xl mx-auto mb-14">
+                                <div className="section-heading">
+                                    <div>
+                                        <div className="eyebrow mb-2">Coleção</div>
+                                        <h2 className="tracking-tight">{block.content.title}</h2>
                                     </div>
-                                ))}
+                                </div>
+                                <div className={block.content.displayStyle === 'grid' ? 'grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'flex gap-5 overflow-x-auto pb-4 snap-x scrollbar-subtle'}>
+                                    {blockCourses.map((course, i) => (
+                                        <div key={course.id} className={block.content.displayStyle === 'grid' ? '' : 'min-w-[300px] snap-start'}>
+                                            <PremiumCourseCard course={course} index={i} onClick={() => onCourseClick(course.id)} />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
             ))}
         </div>
@@ -802,29 +1152,112 @@ export const HomeView: React.FC<{ courses: Course[], onCourseClick: (id: string)
 };
 
 export const CourseDetailView: React.FC<{ course: Course, onBack: () => void, onLessonSelect: (id: string) => void }> = ({ course, onBack, onLessonSelect }) => {
+    const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
+    const totalDuration = course.modules.reduce((acc, m) => acc + m.lessons.reduce((a, l) => a + (l.duration || 0), 0), 0);
+    const coverImage = course.coverImage || pickImage(COURSE_COVERS, course.id + course.title);
+    const bannerImage = course.bannerImage || pickImage(COURSE_BANNERS, course.id + course.title);
+    const author = course.author || DEFAULT_AUTHOR;
+
     return (
-        <div className="pb-20">
-            <div className="relative h-64 md:h-80 w-full overflow-hidden">
-                <img src={course.bannerImage} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/80 to-transparent"></div>
-                <button onClick={onBack} className="absolute top-4 left-4 p-2 bg-black/50 text-white rounded-full"><ArrowLeft size={20} /></button>
-                <div className="absolute bottom-0 left-0 w-full p-8 flex items-end gap-8">
-                    <img src={course.coverImage} className="w-32 h-32 md:w-48 md:h-48 object-cover rounded-xl border-4 border-brand-dark shadow-2xl" />
-                    <div className="mb-2"><h1 className="text-3xl font-bold text-white">{course.title}</h1><div dangerouslySetInnerHTML={{ __html: course.description }} className="text-gray-300 line-clamp-2"></div></div>
-                </div>
+        <div className="pb-24">
+            {/* Editorial hero */}
+            <div className="relative h-[360px] md:h-[440px] w-full overflow-hidden">
+                <img src={bannerImage} className="w-full h-full object-cover scale-105" />
+                <div className="absolute inset-0 bg-gradient-to-b from-brand-dark/40 via-brand-dark/70 to-brand-dark" />
+                <div className="absolute inset-0 bg-gradient-hero" />
+
+                <button
+                    onClick={onBack}
+                    className="absolute top-5 left-5 lg:left-8 flex items-center gap-2 px-3.5 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white text-sm font-semibold hover:bg-black/70 hover:border-brand-primary/40 transition-colors"
+                >
+                    <ArrowLeft size={15} /> Voltar
+                </button>
             </div>
-            <div className="max-w-4xl mx-auto px-4 mt-8 space-y-4">
-                {course.modules.map((module, idx) => (
-                    <div key={module.id} className="bg-brand-card border border-white/5 rounded-xl overflow-hidden">
-                        <div className="p-4 bg-white/5 border-b border-white/5"><h3 className="font-bold text-white">{module.title}</h3></div>
-                        {module.lessons.map(lesson => (
-                            <button key={lesson.id} onClick={() => onLessonSelect(lesson.id)} className="w-full p-4 flex items-center gap-4 hover:bg-white/5 text-left border-b border-white/5">
-                                <Play size={16} className="text-gray-500" />
-                                <div className="flex-1 text-gray-200">{lesson.title}</div>
-                            </button>
-                        ))}
+
+            {/* Overlapping content card */}
+            <div className="max-w-6xl mx-auto px-4 lg:px-8 -mt-32 relative z-10">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    className="panel-premium-raised p-6 md:p-8 flex flex-col md:flex-row items-start gap-6 md:gap-8"
+                >
+                    <div className="shrink-0 relative">
+                        <div className="absolute -inset-2 bg-gradient-premium opacity-40 blur-xl rounded-2xl" />
+                        <img
+                            src={coverImage}
+                            alt={course.title}
+                            className="relative w-32 h-32 md:w-40 md:h-40 object-cover rounded-2xl border border-white/10 shadow-premium-lg"
+                        />
                     </div>
-                ))}
+                    <div className="flex-1 min-w-0">
+                        <div className="eyebrow mb-3">Curso Conversapp</div>
+                        <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3 leading-tight">{course.title}</h1>
+                        <div {...safeHtml(course.description)} className="text-gray-300 text-sm md:text-base leading-relaxed line-clamp-3 mb-5" />
+                        <div className="flex flex-wrap gap-2">
+                            <div className="stat-chip"><Layers className="w-3.5 h-3.5 text-brand-primary" /><span className="font-mono uppercase tracking-wider">{course.modules.length} módulos</span></div>
+                            <div className="stat-chip"><Play className="w-3.5 h-3.5 text-brand-primary" /><span className="font-mono uppercase tracking-wider">{totalLessons} aulas</span></div>
+                            {totalDuration > 0 && (
+                                <div className="stat-chip"><Clock className="w-3.5 h-3.5 text-brand-primary" /><span className="font-mono uppercase tracking-wider">{Math.round(totalDuration / 60)}h totais</span></div>
+                            )}
+                            <div className="stat-chip"><UserIcon className="w-3.5 h-3.5 text-brand-primary" /><span className="font-mono uppercase tracking-wider">{author}</span></div>
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+
+            {/* Modules list */}
+            <div className="max-w-5xl mx-auto px-4 lg:px-8 mt-12">
+                <div className="section-heading">
+                    <div>
+                        <div className="eyebrow mb-2">Conteúdo</div>
+                        <h2 className="tracking-tight">Estrutura do curso</h2>
+                    </div>
+                    <div className="eyebrow-muted hidden md:block">{course.modules.length} módulos · {totalLessons} aulas</div>
+                </div>
+
+                <div className="space-y-4">
+                    {course.modules.map((module, idx) => (
+                        <motion.div
+                            key={module.id}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, delay: idx * 0.04 }}
+                            className="module-card"
+                        >
+                            <div className="module-card-header" style={{ background: MODULE_GRADIENTS[idx % MODULE_GRADIENTS.length] }}>
+                                <div className="module-number">{String(idx + 1).padStart(2, '0')}</div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-white text-[15px] tracking-tight">{module.title}</h3>
+                                    <p className="text-[11px] font-mono uppercase tracking-wider text-brand-primary/70 mt-0.5">{module.lessons.length} {module.lessons.length === 1 ? 'aula' : 'aulas'} · por {DEFAULT_AUTHOR}</p>
+                                </div>
+                            </div>
+                            <div className="p-2.5 space-y-1">
+                                {module.lessons.length === 0 && (
+                                    <div className="text-xs text-gray-500 italic px-4 py-3">Nenhuma aula neste módulo ainda.</div>
+                                )}
+                                {module.lessons.map((lesson, lIdx) => (
+                                    <button
+                                        key={lesson.id}
+                                        onClick={() => onLessonSelect(lesson.id)}
+                                        className="lesson-row"
+                                    >
+                                        <div className="lesson-icon-wrap">
+                                            {lesson.type === 'video' ? <Play size={14} /> : <FileText size={14} />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-[14px] text-gray-200 font-medium leading-tight">{lesson.title}</div>
+                                            <div className="text-[11px] font-mono uppercase tracking-wider text-gray-500 mt-0.5">
+                                                Aula {String(lIdx + 1).padStart(2, '0')}{lesson.duration ? ` · ${lesson.duration} min` : ''}
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-brand-primary shrink-0" />
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
             </div>
         </div>
     );
@@ -955,10 +1388,15 @@ export const PlayerView: React.FC<{ course: Course, lessonId: string, onBack: ()
     }
 
     useEffect(() => {
+        // Reset immediately so the previous lesson's state doesn't bleed into
+        // the new one while we read from storage.
+        setIsCompleted(false);
         if (user && user.id && lessonId) {
             const progress = ProgressService.getProgress(user.id);
             setIsCompleted(!!progress[lessonId]);
         }
+        // Scroll the player back to the top whenever the lesson changes.
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [lessonId, user]);
 
     if (!currentLesson) return <div className="p-8 text-white">Aula não encontrada</div>;
@@ -1001,7 +1439,7 @@ export const PlayerView: React.FC<{ course: Course, lessonId: string, onBack: ()
                                 </div>
                             </div>
 
-                            <div dangerouslySetInnerHTML={{ __html: currentLesson.description }} className="prose prose-invert prose-lg text-gray-300 mb-8 max-w-none"></div>
+                            <div {...safeHtml(currentLesson.description)} className="prose prose-invert prose-lg text-gray-300 mb-8 max-w-none"></div>
 
                             {/* Attachments */}
                             {currentLesson.attachments && currentLesson.attachments.length > 0 && (
@@ -1058,7 +1496,7 @@ export const PlayerView: React.FC<{ course: Course, lessonId: string, onBack: ()
                                 </button>
                             </div>
 
-                            <div className="prose prose-invert prose-xl max-w-none mb-12" dangerouslySetInnerHTML={{ __html: currentLesson.textContent || '' }}></div>
+                            <div className="prose prose-invert prose-xl max-w-none mb-12" {...safeHtml(currentLesson.textContent)}></div>
 
                             {/* Navigation & Comments also here */}
                             <div className="flex justify-between items-center py-8 border-t border-white/10 mb-8">
@@ -1071,20 +1509,54 @@ export const PlayerView: React.FC<{ course: Course, lessonId: string, onBack: ()
                 )}
             </div>
 
-            {/* Sidebar */}
-            <div className="w-full lg:w-96 bg-brand-card border-l border-white/10 flex flex-col h-[400px] lg:h-full overflow-hidden shrink-0">
-                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-brand-card z-10">
-                    <button onClick={onBack} className="text-gray-400 hover:text-white flex items-center gap-2 text-sm font-bold"><ArrowLeft size={16} /> Voltar</button>
-                    <div className="text-xs text-gray-500 font-bold uppercase">{Math.round((flatLessons.filter(l => ProgressService.getProgress(user?.id || '')[l.id]).length / flatLessons.length) * 100)}% Concluído</div>
+            {/* Premium Sidebar */}
+            <div className="player-sidebar w-full lg:w-[380px] flex flex-col h-[400px] lg:h-full overflow-hidden shrink-0">
+                {/* Top bar */}
+                <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between sticky top-0 z-20 bg-brand-card/80 backdrop-blur-xl">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 px-3 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 hover:border-brand-primary/40 text-gray-300 hover:text-white text-xs font-semibold transition-colors"
+                    >
+                        <ArrowLeft size={14} /> Curso
+                    </button>
+                    {(() => {
+                        const completed = flatLessons.filter(l => ProgressService.getProgress(user?.id || '')[l.id]).length;
+                        const pct = flatLessons.length ? Math.round((completed / flatLessons.length) * 100) : 0;
+                        return (
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <div className="text-[10px] font-mono uppercase tracking-wider text-gray-500 leading-none">Progresso</div>
+                                    <div className="text-[13px] font-bold text-white leading-tight mt-0.5">{completed}<span className="text-gray-500">/{flatLessons.length}</span></div>
+                                </div>
+                                <div
+                                    className="player-progress-ring"
+                                    style={{ ['--pct' as any]: pct }}
+                                >
+                                    <span>{pct}%</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
-                <div className="overflow-y-auto flex-1 custom-scrollbar">
+
+                {/* Course title */}
+                <div className="px-5 py-4 border-b border-white/5">
+                    <div className="eyebrow-muted mb-1">Você está assistindo</div>
+                    <h3 className="text-[15px] font-bold text-white tracking-tight leading-tight truncate">{course.title}</h3>
+                </div>
+
+                {/* Lesson list */}
+                <div className="overflow-y-auto flex-1 scrollbar-subtle">
                     {course.modules.map((module, idx) => (
                         <div key={module.id} className="border-b border-white/5 last:border-0">
-                            <div className="px-5 py-3 bg-white/5 text-xs font-bold text-gray-400 uppercase flex justify-between items-center sticky top-0 backdrop-blur-sm z-10">
-                                {module.title}
-                                <span className="text-[10px] bg-black/30 px-2 py-1 rounded">{module.lessons.length} aulas</span>
+                            <div className="px-5 py-3 flex items-center gap-3 sticky top-0 bg-brand-card/95 backdrop-blur-sm z-10 border-b border-white/5">
+                                <div className="module-number w-7 h-7 text-[10px]">{String(idx + 1).padStart(2, '0')}</div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[12px] font-bold text-white uppercase tracking-wider truncate">{module.title}</div>
+                                    <div className="text-[10px] font-mono text-gray-500 mt-0.5">{module.lessons.length} aulas</div>
+                                </div>
                             </div>
-                            <div className="divide-y divide-white/5">
+                            <div className="p-2 space-y-0.5">
                                 {module.lessons.map(lesson => {
                                     const isCompletedLesson = user ? !!ProgressService.getProgress(user.id)[lesson.id] : false;
                                     const isActive = lesson.id === lessonId;
@@ -1092,14 +1564,19 @@ export const PlayerView: React.FC<{ course: Course, lessonId: string, onBack: ()
                                         <button
                                             key={lesson.id}
                                             onClick={() => onLessonChange(lesson.id)}
-                                            className={`w-full text-left p-4 flex items-start gap-3 transition-colors hover:bg-white/5 ${isActive ? 'bg-brand-primary/5 border-l-4 border-brand-primary pl-3' : 'border-l-4 border-transparent pl-3'}`}
+                                            className={`lesson-row ${isActive ? 'active' : ''} ${isCompletedLesson ? 'completed' : ''}`}
                                         >
-                                            <div className={`mt-1 ${isCompletedLesson ? 'text-green-500' : (isActive ? 'text-brand-primary' : 'text-gray-600')}`}>
-                                                {isCompletedLesson ? <CheckCircle size={16} className="fill-green-500/10" /> : (lesson.type === 'video' ? <Play size={16} className={isActive ? 'fill-brand-primary' : ''} /> : <FileText size={16} />)}
+                                            <div className="lesson-icon-wrap">
+                                                {isCompletedLesson
+                                                    ? <CheckCircle size={14} />
+                                                    : (lesson.type === 'video' ? <Play size={14} /> : <FileText size={14} />)
+                                                }
                                             </div>
-                                            <div className="flex-1">
-                                                <div className={`text-sm font-medium leading-snug ${isActive ? 'text-white' : 'text-gray-400'}`}>{lesson.title}</div>
-                                                <div className="text-xs text-gray-600 mt-1">{lesson.duration ? `${lesson.duration} min` : 'Vídeo'}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className={`text-[13px] font-medium leading-snug line-clamp-2 ${isActive ? 'text-white' : 'text-gray-300'}`}>{lesson.title}</div>
+                                                <div className="text-[10px] font-mono uppercase tracking-wider text-gray-500 mt-1">
+                                                    {lesson.duration ? `${lesson.duration} min` : lesson.type === 'video' ? 'Vídeo' : 'Texto'}
+                                                </div>
                                             </div>
                                         </button>
                                     );
@@ -1112,6 +1589,30 @@ export const PlayerView: React.FC<{ course: Course, lessonId: string, onBack: ()
         </div>
     );
 };
+
+const PremiumField: React.FC<{
+    id: string; label: string; type?: string; value: string;
+    onChange: (v: string) => void; placeholder?: string; icon: React.FC<any>;
+    autoComplete?: string; action?: React.ReactNode; onSubmit?: () => void;
+}> = ({ id, label, type = 'text', value, onChange, placeholder, icon: Icon, autoComplete, action, onSubmit }) => (
+    <div>
+        <label htmlFor={id} className="block text-[10px] font-mono uppercase tracking-wider text-gray-400 mb-2">{label}</label>
+        <div className="relative">
+            <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+            <input
+                id={id}
+                type={type}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && onSubmit?.()}
+                placeholder={placeholder}
+                autoComplete={autoComplete}
+                className="w-full h-12 bg-brand-inset border border-white/8 rounded-xl pl-10 pr-10 text-white text-sm placeholder:text-gray-600 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+            />
+            {action && <div className="absolute right-3 top-1/2 -translate-y-1/2">{action}</div>}
+        </div>
+    </div>
+);
 
 export const LoginView: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     const [isLogin, setIsLogin] = useState(true);
@@ -1172,185 +1673,317 @@ export const LoginView: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         setSuccessMsg('');
     };
 
+    const [showPassword, setShowPassword] = useState(false);
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-brand-dark bg-grid relative overflow-hidden">
-            {/* Grid pattern já está aplicado via bg-grid */}
-            <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/80 to-transparent"></div>
+        <div className="min-h-screen flex items-center justify-center bg-brand-dark relative overflow-hidden px-4 py-12">
+            {/* Background grid */}
+            <div className="absolute inset-0 bg-[image:linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+            {/* Radial green glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,211,102,0.14)_0%,transparent_60%)] pointer-events-none" />
 
-            <div className="relative z-10 p-8 bg-brand-card/50 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl w-full max-w-md">
-                <div className="text-center mb-6">
-                    <img src="https://i.imgur.com/FIJkEbs.png" className="h-32 mx-auto mb-2" alt="Logo" />
-                    <h1 className="text-2xl font-bold text-white">
-                        {isForgot ? 'Recuperar Senha' : (isLogin ? 'Bem-vindo de volta' : 'Criar Conta')}
-                    </h1>
-                    <p className="text-gray-400 text-sm">
-                        {isForgot ? 'Digite seu email para receber um link de redefinição' : (isLogin ? 'Acesse sua conta para continuar' : 'Comece sua jornada de aprendizado')}
-                    </p>
-                </div>
-
-                {!isForgot && (
-                    <div className="flex bg-brand-dark p-1 rounded-lg mb-6 border border-white/10">
-                        <button onClick={() => { setIsLogin(true); setError(''); setSuccessMsg(''); }} className={`flex-1 py-2 text-sm font-bold rounded transition-colors ${isLogin ? 'bg-brand-primary text-brand-dark shadow-lg' : 'text-gray-400 hover:text-white'}`}>Entrar</button>
-                        <button onClick={() => { setIsLogin(false); setError(''); setSuccessMsg(''); }} className={`flex-1 py-2 text-sm font-bold rounded transition-colors ${!isLogin ? 'bg-brand-primary text-brand-dark shadow-lg' : 'text-gray-400 hover:text-white'}`}>Cadastrar</button>
-                    </div>
-                )}
-
-                <div className="space-y-4">
-                    {error && <div className="p-3 bg-red-500/20 border border-red-500 rounded text-red-200 text-sm text-center">{error}</div>}
-                    {successMsg && <div className="p-3 bg-green-500/20 border border-green-500 rounded text-green-200 text-sm text-center">{successMsg}</div>}
-
-                    {!isLogin && !isForgot && (
-                        <div className="animate-in fade-in slide-in-from-top-2">
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome Completo</label>
-                            <div className="relative">
-                                <UserIcon className="absolute left-3 top-3 text-gray-500 w-5 h-5" />
-                                <input
-                                    value={name}
-                                    onChange={e => setName(e.target.value)}
-                                    onKeyPress={e => e.key === 'Enter' && handleAuth()}
-                                    placeholder="Seu Nome"
-                                    className="w-full bg-brand-dark border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none transition-colors"
-                                />
-                            </div>
+            <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                className="relative z-10 w-full max-w-[420px]"
+            >
+                {/* Glassmorphism card */}
+                <div
+                    className="bg-brand-card/60 backdrop-blur-2xl border border-white/8 rounded-3xl shadow-[0_40px_80px_-20px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] p-8"
+                    style={{ boxShadow: '0 40px 80px -20px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05), 0 0 60px -20px rgba(37,211,102,0.08)' }}
+                >
+                    {/* Brand */}
+                    <div className="text-center mb-8">
+                        <div className="relative inline-block mb-5">
+                            <div className="absolute inset-0 bg-brand-primary/25 blur-2xl rounded-full scale-150" />
+                            <img src="https://i.imgur.com/FIJkEbs.png" className="relative h-20 mx-auto" alt="Conversapp Academy" />
                         </div>
-                    )}
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Email</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-3 text-gray-500 w-5 h-5" />
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                                onKeyPress={e => e.key === 'Enter' && handleAuth()}
-                                placeholder="seu@email.com"
-                                className="w-full bg-brand-dark border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none transition-colors"
-                            />
-                        </div>
+                        <h1 className="text-2xl font-bold text-white tracking-tight">
+                            {isForgot ? 'Recuperar acesso' : (isLogin ? 'Bem-vindo de volta' : 'Criar sua conta')}
+                        </h1>
+                        <p className="text-gray-400 text-sm mt-1.5 leading-relaxed">
+                            {isForgot
+                                ? 'Enviaremos um link de redefinição para seu email'
+                                : isLogin
+                                    ? 'Acesse a área exclusiva de membros'
+                                    : 'Comece sua jornada no Conversapp Academy'}
+                        </p>
                     </div>
 
+                    {/* Tab switcher */}
                     {!isForgot && (
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Senha</label>
-                            <div className="relative">
-                                <Key className="absolute left-3 top-3 text-gray-500 w-5 h-5" />
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    onKeyPress={e => e.key === 'Enter' && handleAuth()}
-                                    placeholder="••••••••"
-                                    className="w-full bg-brand-dark border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none transition-colors"
-                                />
-                            </div>
+                        <div className="flex bg-brand-inset/80 p-1 rounded-xl mb-7 border border-white/5">
+                            <button
+                                onClick={() => { setIsLogin(true); setError(''); setSuccessMsg(''); }}
+                                className={`flex-1 py-2.5 text-[12px] font-mono uppercase tracking-wider rounded-lg transition-all ${isLogin ? 'bg-gradient-premium text-brand-dark font-bold shadow-neon' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                Entrar
+                            </button>
+                            <button
+                                onClick={() => { setIsLogin(false); setError(''); setSuccessMsg(''); }}
+                                className={`flex-1 py-2.5 text-[12px] font-mono uppercase tracking-wider rounded-lg transition-all ${!isLogin ? 'bg-gradient-premium text-brand-dark font-bold shadow-neon' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                Cadastrar
+                            </button>
                         </div>
                     )}
 
-                    <motion.button
-                        whileTap={buttonTap}
-                        onClick={handleAuth}
-                        disabled={loading}
-                        className="w-full bg-brand-primary text-brand-dark font-bold py-3 rounded-lg hover:brightness-110 transition-all shadow-lg shadow-brand-primary/20 flex justify-center"
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : (isForgot ? 'Enviar Link' : (isLogin ? 'Entrar na Plataforma' : 'Criar Conta Grátis'))}
-                    </motion.button>
-                </div>
+                    {/* Messages */}
+                    <AnimatePresence mode="wait">
+                        {successMsg && (
+                            <motion.div
+                                key="success"
+                                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                                className="flex items-start gap-3 p-4 mb-5 bg-brand-primary/10 border border-brand-primary/30 rounded-xl"
+                                role="alert"
+                                aria-live="polite"
+                            >
+                                <CheckCircle className="w-4 h-4 text-brand-primary mt-0.5 shrink-0" />
+                                <p className="text-[13px] text-brand-aurora leading-relaxed">{successMsg}</p>
+                            </motion.div>
+                        )}
+                        {error && (
+                            <motion.div
+                                key="error"
+                                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                                className="flex items-start gap-3 p-4 mb-5 bg-red-500/10 border border-red-500/30 rounded-xl"
+                                role="alert"
+                                aria-live="assertive"
+                            >
+                                <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                                <p className="text-[13px] text-red-300 leading-relaxed">{error}</p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                <div className="mt-6 text-center space-y-2">
-                    {isForgot ? (
-                        <button onClick={toggleForgot} className="text-xs text-gray-400 hover:text-white transition-colors">Voltar ao Login</button>
-                    ) : (
-                        isLogin && <button onClick={toggleForgot} className="text-xs text-gray-400 hover:text-white transition-colors">Esqueceu sua senha?</button>
-                    )}
+                    <div className="space-y-4">
+                        {!isLogin && !isForgot && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <PremiumField id="name" label="Nome completo" value={name} onChange={setName} placeholder="Seu nome" icon={UserIcon} autoComplete="name" onSubmit={handleAuth} />
+                            </motion.div>
+                        )}
+
+                        <PremiumField
+                            id="email" label="E-mail" type="email" value={email}
+                            onChange={setEmail} placeholder="seu@email.com"
+                            icon={Mail} autoComplete="email" onSubmit={handleAuth}
+                        />
+
+                        {!isForgot && (
+                            <PremiumField
+                                id="password" label="Senha"
+                                type={showPassword ? 'text' : 'password'}
+                                value={password} onChange={setPassword} placeholder="••••••••"
+                                icon={Key} autoComplete={isLogin ? 'current-password' : 'new-password'}
+                                onSubmit={handleAuth}
+                                action={
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="text-gray-500 hover:text-gray-300 transition-colors"
+                                        aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                                    >
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                }
+                            />
+                        )}
+
+                        <motion.button
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleAuth}
+                            disabled={loading}
+                            className="btn-primary-premium w-full h-12 text-[13px] justify-center mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {loading
+                                ? <><Loader2 className="w-4 h-4 animate-spin" /> Aguarde...</>
+                                : isForgot ? 'Enviar link de recuperação'
+                                : isLogin ? 'Entrar na plataforma'
+                                : 'Criar minha conta'}
+                        </motion.button>
+                    </div>
+
+                    <div className="mt-5 text-center">
+                        {isForgot ? (
+                            <button onClick={toggleForgot} className="text-[12px] text-gray-400 hover:text-brand-primary transition-colors underline underline-offset-2">
+                                Voltar ao login
+                            </button>
+                        ) : isLogin ? (
+                            <button onClick={toggleForgot} className="text-[12px] text-gray-400 hover:text-brand-primary transition-colors">
+                                Esqueceu sua senha?
+                            </button>
+                        ) : null}
+                    </div>
+
+                    {/* Footer trust signal */}
+                    <div className="mt-7 pt-5 border-t border-white/5 flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-brand-primary shadow-[0_0_8px_#25D366]" />
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500">Área exclusiva · Conversapp Academy</span>
+                    </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 };
 
 const SortablePageBlock = ({ block, openBlockId, setOpenBlockId, removeBlock, updateBlock }: any) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
-    const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+    const isOpen = openBlockId === block.id;
+    const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 50 : 'auto' };
+
+    const isBanner = block.type === 'hero_banner';
 
     return (
-        <div ref={setNodeRef} style={style} className="bg-brand-card border border-white/10 rounded-xl overflow-hidden mb-4">
-            <div className="p-4 flex items-center gap-4 bg-white/5 border-b border-white/5">
-                <div className="text-gray-500 cursor-grab p-2 hover:text-white" {...attributes} {...listeners}>
-                    <GripVertical size={20} />
-                </div>
-                <div className="p-2 bg-brand-dark rounded text-gray-400">
-                    {block.type === 'hero_banner' ? <ImageIcon size={20} /> : <ListIcon size={20} />}
-                </div>
-                <div className="flex-1">
-                    <h3 className="font-bold text-white">{block.content.title || 'Sem título'}</h3>
-                    <p className="text-xs text-gray-400 uppercase">{block.type === 'hero_banner' ? 'Banner Principal' : 'Vitrine de Cursos'}</p>
-                </div>
-                <button onClick={() => setOpenBlockId(openBlockId === block.id ? null : block.id)} className="px-4 py-2 bg-white/5 rounded text-sm font-bold hover:bg-white/10 text-white transition-colors">
-                    {openBlockId === block.id ? 'Fechar' : 'Editar'}
+        <div ref={setNodeRef} style={style} className={`rounded-2xl overflow-hidden border transition-all duration-200 ${isOpen ? 'border-brand-primary/40 shadow-neon' : 'border-white/8 hover:border-white/15'} bg-brand-card`}>
+            {/* Block Header */}
+            <div className={`flex items-center gap-3 px-4 py-3 ${isOpen ? 'bg-brand-primary/5 border-b border-brand-primary/15' : 'bg-white/3'}`}>
+                <button className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing p-1 transition-colors shrink-0" {...attributes} {...listeners} title="Arrastar">
+                    <GripVertical size={15} />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); removeBlock(block.id); }} className="p-2 text-gray-500 hover:text-red-400 transition-colors"><Trash size={18} /></button>
+
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isBanner ? 'bg-blue-500/15 text-blue-400' : 'bg-brand-primary/15 text-brand-primary'}`}>
+                    {isBanner ? <ImageIcon size={15} /> : <ListIcon size={15} />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-white truncate">{block.content.title || 'Sem título'}</p>
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-gray-600">{isBanner ? 'Banner' : 'Vitrine de Cursos'}</p>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                        onClick={() => setOpenBlockId(isOpen ? null : block.id)}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-all ${isOpen ? 'bg-brand-primary/15 text-brand-primary border border-brand-primary/25' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/8'}`}
+                    >
+                        {isOpen ? 'Fechar' : 'Editar'}
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); removeBlock(block.id); }}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                        title="Remover bloco"
+                    >
+                        <Trash size={14} />
+                    </button>
+                </div>
             </div>
 
-            {openBlockId === block.id && (
-                <div className="p-6 border-t border-white/5 animate-in slide-in-from-top-2 bg-black/20">
-                    {block.type === 'hero_banner' && (
-                        <div className="space-y-4">
-                            <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-4 py-2 text-white" placeholder="Título do Banner" />
-                            <textarea value={block.content.description} onChange={e => updateBlock(block.id, { description: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-4 py-2 text-white h-24" placeholder="Descrição do Banner"></textarea>
-                            <ImagePicker label="Imagem de Fundo" value={block.content.imageUrl || ''} onChange={val => updateBlock(block.id, { imageUrl: val })} allowedTabs={['upload', 'link', 'ai']} />
-
-                            <div className="border-t border-white/10 pt-4 mt-4 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <label className="font-bold text-white text-sm">Botão de Ação (CTA)</label>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" checked={block.content.showCta} onChange={e => updateBlock(block.id, { showCta: e.target.checked })} className="sr-only peer" />
-                                        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
-                                    </label>
-                                </div>
-
-                                {block.content.showCta && (
-                                    <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1">
-                                        <input value={block.content.ctaText} onChange={e => updateBlock(block.id, { ctaText: e.target.value })} className="bg-brand-dark border border-white/20 rounded px-4 py-2 text-white" placeholder="Texto do Botão" />
-                                        <input value={block.content.ctaLink || ''} onChange={e => updateBlock(block.id, { ctaLink: e.target.value })} className="bg-brand-dark border border-white/20 rounded px-4 py-2 text-white font-mono text-sm" placeholder="https://..." />
+            {/* Block Editor */}
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-5 bg-black/20 space-y-4">
+                            {isBanner && (
+                                <>
+                                    <div>
+                                        <label className="block text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-1.5">Título</label>
+                                        <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Título do Banner" />
                                     </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                                    <div>
+                                        <label className="block text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-1.5">Descrição</label>
+                                        <textarea value={block.content.description} onChange={e => updateBlock(block.id, { description: e.target.value })} className="w-full bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white h-20 resize-none focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Descrição do Banner" />
+                                    </div>
+                                    <ImagePicker label="Imagem de Fundo" value={block.content.imageUrl || ''} onChange={val => updateBlock(block.id, { imageUrl: val })} resolutionHint="1920×1080px · proporção 16:9 · JPG/PNG/WebP" allowedTabs={['upload', 'link', 'ai']} />
+                                    <div className="border-t border-white/8 pt-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[13px] font-semibold text-white">Botão de Ação (CTA)</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={block.content.showCta} onChange={e => updateBlock(block.id, { showCta: e.target.checked })} className="sr-only peer" />
+                                                <div className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-primary relative"></div>
+                                            </label>
+                                        </div>
+                                        {block.content.showCta && (
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <input value={block.content.ctaText} onChange={e => updateBlock(block.id, { ctaText: e.target.value })} className="bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Texto do botão" />
+                                                <input value={block.content.ctaLink || ''} onChange={e => updateBlock(block.id, { ctaLink: e.target.value })} className="bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white font-mono focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="https://..." />
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
 
-                    {block.type === 'content_list' && (
-                        <div className="space-y-4">
-                            <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-4 py-2 text-white" placeholder="Título da Seção (ex: Cursos Recentes)" />
-                            <div className="grid grid-cols-2 gap-4">
-                                <VisualSelector
-                                    label="Fonte de Conteúdo"
-                                    value={block.content.sourceType || 'all_courses'}
-                                    onChange={val => updateBlock(block.id, { sourceType: val })}
-                                    options={[{ value: 'all_courses', label: 'Todos os Cursos' }, { value: 'specific_courses', label: 'Selecionar Manualmente' }]}
-                                />
-                                <VisualSelector
-                                    label="Estilo de Exibição"
-                                    value={block.content.displayStyle || 'carousel'}
-                                    onChange={val => updateBlock(block.id, { displayStyle: val })}
-                                    options={[{ value: 'carousel', label: 'Carrossel' }, { value: 'grid', label: 'Grade' }]}
-                                />
-                            </div>
-
-                            {/* Specific Courses Selector */}
-                            {block.content.sourceType === 'specific_courses' && (
-                                <CourseSelector
-                                    selectedIds={block.content.selectedIds || []}
-                                    onChange={(ids) => updateBlock(block.id, { selectedIds: ids })}
-                                />
+                            {!isBanner && (
+                                <>
+                                    <div>
+                                        <label className="block text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-1.5">Título da Seção</label>
+                                        <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="ex: Cursos em Destaque" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <VisualSelector
+                                            label="Fonte de Conteúdo"
+                                            value={block.content.sourceType || 'all_courses'}
+                                            onChange={val => updateBlock(block.id, { sourceType: val })}
+                                            options={[{ value: 'all_courses', label: 'Todos os Cursos' }, { value: 'specific_courses', label: 'Selecionar Manualmente' }]}
+                                        />
+                                        <VisualSelector
+                                            label="Estilo de Exibição"
+                                            value={block.content.displayStyle || 'carousel'}
+                                            onChange={val => updateBlock(block.id, { displayStyle: val })}
+                                            options={[{ value: 'carousel', label: 'Carrossel' }, { value: 'grid', label: 'Grade' }]}
+                                        />
+                                    </div>
+                                    {block.content.sourceType === 'specific_courses' && (
+                                        <div className="border-t border-white/8 pt-4">
+                                            <CourseSelector
+                                                selectedIds={block.content.selectedIds || []}
+                                                onChange={(ids) => updateBlock(block.id, { selectedIds: ids })}
+                                            />
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
-                    )}
-                </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
+
+// Quick course list shown in the builder panel "Cursos" tab
+const CoursesPanel: React.FC = () => {
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [loading, setLoading] = useState(true);
+    useEffect(() => { CourseService.getAll().then(c => { setCourses(c); setLoading(false); }); }, []);
+    if (loading) return (
+        <div className="flex items-center justify-center py-16">
+            <Loader2 size={20} className="animate-spin text-brand-primary/60" />
+        </div>
+    );
+    return (
+        <div className="px-4 pt-4 pb-4 space-y-2">
+            {courses.length === 0 ? (
+                <div className="text-center py-12">
+                    <BookOpen size={24} className="text-gray-700 mx-auto mb-2" />
+                    <p className="text-[12px] text-gray-500">Nenhum curso ainda.</p>
+                    <p className="text-[11px] text-gray-600 mt-1">Crie cursos na aba Cursos do Construtor.</p>
+                </div>
+            ) : courses.map(c => {
+                const totalLessons = c.modules.reduce((acc, m) => acc + m.lessons.length, 0);
+                return (
+                    <div key={c.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-brand-surface/30 border border-white/6">
+                        <img src={hqImage(c.coverImage, 200)} alt={c.title} loading="lazy" decoding="async" className="w-10 h-10 rounded-lg object-cover ring-1 ring-white/10 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-white truncate">{c.title}</p>
+                            <p className="text-[10px] font-mono text-gray-600">{c.modules.length} mód · {totalLessons} aulas</p>
+                        </div>
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${c.modules.length > 0 ? 'bg-brand-primary shadow-[0_0_6px_#25D366]' : 'bg-white/20'}`} title={c.modules.length > 0 ? 'Publicado' : 'Vazio'} />
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 const PageBuilder: React.FC = () => {
     const [blocks, setBlocks] = useState<PageBlock[]>([]);
@@ -1358,11 +1991,13 @@ const PageBuilder: React.FC = () => {
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
+    const [previewCourses, setPreviewCourses] = useState<Course[]>([]);
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
     // Load initial data
     useEffect(() => {
         LayoutService.getBlocks().then(setBlocks);
+        CourseService.getAll().then(setPreviewCourses);
     }, []);
 
     // Auto-save effect
@@ -1413,11 +2048,11 @@ const PageBuilder: React.FC = () => {
             id: `blk-${Date.now()}`,
             type,
             content: type === 'hero_banner' ? {
-                title: 'Novo Banner',
-                description: 'Descrição do banner...',
-                imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=2000',
+                title: 'Conversapp Academy',
+                description: 'Sua plataforma de ensino.',
+                imageUrl: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&q=90&w=2000',
                 showCta: true,
-                ctaText: 'Saiba Mais'
+                ctaText: 'Ver Cursos'
             } : {
                 title: 'Cursos em Destaque',
                 sourceType: 'all_courses',
@@ -1445,99 +2080,242 @@ const PageBuilder: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden">
+        <div className="flex h-full overflow-hidden" style={{background:'#050707'}}>
             {confirmModal && <ConfirmDialog {...confirmModal} onCancel={() => setConfirmModal(null)} />}
-            {/* Left: Immediate Preview */}
-            <div className="flex-1 bg-black relative overflow-y-auto custom-scrollbar">
-                <div className="w-full max-w-full mx-auto min-h-full pb-20 pt-8 px-4 lg:px-8">
-                    <div className="absolute top-4 left-4 bg-black/50 px-3 py-1 rounded text-xs text-gray-400 font-mono uppercase border border-white/10 pointer-events-none z-10">Live Preview</div>
 
-                    {blocks.length === 0 && (
-                        <div className="flex items-center justify-center h-full text-gray-500">
-                            <p>Adicione seções no painel à direita para começar.</p>
+            {/* ── LEFT: Canvas Preview ── */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* Canvas header bar */}
+                <div className="h-11 flex items-center justify-between px-5 shrink-0" style={{background:'#050707', borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                    <div className="flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-white/10" />
+                            <div className="w-3 h-3 rounded-full bg-white/10" />
+                            <div className="w-3 h-3 rounded-full bg-white/10" />
+                        </div>
+                        <span className="text-[11px] font-mono text-gray-600 ml-2">preview · página principal</span>
+                    </div>
+                    {/* Autosave indicator */}
+                    <div className="flex items-center gap-2">
+                        <AnimatePresence mode="wait">
+                            {isSaving ? (
+                                <motion.div key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                    className="flex items-center gap-1.5 text-[11px] font-mono text-yellow-400/80">
+                                    <Loader2 size={10} className="animate-spin" />
+                                    Salvando...
+                                </motion.div>
+                            ) : lastSavedTime ? (
+                                <motion.div key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                    className="flex items-center gap-1.5 text-[11px] font-mono text-brand-primary/70">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-brand-primary shadow-[0_0_6px_#25D366]" />
+                                    Salvo automaticamente
+                                </motion.div>
+                            ) : null}
+                        </AnimatePresence>
+                    </div>
+                </div>
+
+                {/* Scrollable canvas */}
+                <div className="flex-1 overflow-y-auto scrollbar-subtle" style={{background:'#050707'}}>
+                    {blocks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
+                            <div className="w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mb-2">
+                                <LayoutIcon size={28} className="text-gray-600" />
+                            </div>
+                            <div>
+                                <p className="text-[15px] font-semibold text-gray-400">Canvas vazio</p>
+                                <p className="text-[13px] text-gray-600 mt-1">Adicione seções no painel à direita para visualizar a página.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            {blocks.map(block => (
+                                <div
+                                    key={block.id}
+                                    onClick={() => setOpenBlockId(block.id)}
+                                    className={`relative group cursor-pointer transition-all duration-200 ${
+                                        openBlockId === block.id
+                                            ? 'ring-2 ring-inset ring-brand-primary/50'
+                                            : 'hover:ring-1 hover:ring-inset hover:ring-white/15'
+                                    }`}
+                                >
+                                    {/* Floating edit pill */}
+                                    <div className={`absolute top-3 right-3 z-20 transition-all duration-200 ${openBlockId === block.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-wider backdrop-blur-md ${
+                                            openBlockId === block.id
+                                                ? 'bg-brand-primary text-brand-dark shadow-neon'
+                                                : 'bg-black/60 text-white border border-white/20'
+                                        }`}>
+                                            <Pencil size={8} />
+                                            {openBlockId === block.id ? 'Editando' : 'Editar'}
+                                        </div>
+                                    </div>
+
+                                    {block.type === 'hero_banner' ? (
+                                        <div className="relative h-[280px] lg:h-[360px] w-full flex items-center justify-center overflow-hidden">
+                                            <img src={block.content.imageUrl} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-55" alt="" />
+                                            <div className="absolute inset-0 bg-gradient-to-b from-brand-dark/30 via-transparent to-brand-dark/70" />
+                                            <div className="relative z-10 text-center max-w-3xl px-6">
+                                                <h1 className="text-2xl lg:text-4xl font-bold text-white mb-3 drop-shadow-lg leading-tight">{block.content.title}</h1>
+                                                <p className="text-sm lg:text-base text-gray-200/90 mb-6 max-w-xl mx-auto leading-relaxed">{block.content.description}</p>
+                                                {block.content.showCta && (
+                                                    <span className="inline-block bg-brand-primary text-brand-dark px-6 py-2.5 rounded-full font-bold text-sm shadow-neon">
+                                                        {block.content.ctaText}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (() => {
+                                        const blockPreviewCourses = block.content.sourceType === 'specific_courses' && block.content.selectedIds?.length
+                                            ? (block.content.selectedIds as string[]).map((id: string) => previewCourses.find(c => c.id === id)).filter(Boolean) as Course[]
+                                            : previewCourses;
+                                        const displayCourses = blockPreviewCourses.slice(0, 4);
+                                        return (
+                                            <div className="px-6 py-10">
+                                                <p className="text-[10px] font-mono uppercase tracking-wider text-brand-primary/70 mb-1">Coleção</p>
+                                                <h2 className="text-xl font-bold text-white mb-6">{block.content.title}</h2>
+                                                <div className={`grid gap-3 ${displayCourses.length > 0 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-4'}`}>
+                                                    {displayCourses.length > 0 ? displayCourses.map(course => {
+                                                        const cover = hqImage(course.coverImage || pickImage(COURSE_COVERS, course.id + course.title), 600);
+                                                        const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
+                                                        return (
+                                                            <div key={course.id} className="group rounded-xl overflow-hidden bg-brand-card">
+                                                                <div className="relative aspect-[16/10] overflow-hidden bg-brand-inset">
+                                                                    <img src={cover} alt={course.title} loading="lazy" decoding="async" className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" />
+                                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                                                    <div className="absolute bottom-2 left-2 text-[9px] font-mono uppercase tracking-wider bg-black/60 backdrop-blur-sm text-white/80 px-1.5 py-0.5 rounded">
+                                                                        {course.modules.length} mód
+                                                                    </div>
+                                                                </div>
+                                                                <div className="p-3">
+                                                                    <p className="text-[12px] font-semibold text-white truncate">{course.title}</p>
+                                                                    <p className="text-[10px] text-gray-500 mt-0.5">{totalLessons} aulas</p>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }) : [0, 1, 2, 3].map(i => (
+                                                        <div key={i} className="aspect-[4/3] rounded-xl bg-brand-card flex flex-col items-center justify-center gap-2 text-gray-700">
+                                                            <MonitorPlay size={18} />
+                                                            <span className="text-[9px] font-mono uppercase tracking-wider">Curso {i + 1}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            ))}
                         </div>
                     )}
-
-                    {blocks.map(block => (
-                        <div
-                            key={block.id}
-                            className={`relative group border-2 transition-all cursor-pointer ${openBlockId === block.id ? 'border-brand-primary' : 'border-transparent hover:border-white/20'}`}
-                            onClick={() => setOpenBlockId(block.id)}
-                        >
-                            {/* Edit Overlay on Hover */}
-                            <div className="absolute inset-0 bg-brand-primary/5 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20 flex items-center justify-center">
-                                <span className="text-brand-primary font-bold text-sm bg-black/80 px-3 py-1 rounded border border-brand-primary/50">Clique para Editar</span>
-                            </div>
-
-                            {block.type === 'hero_banner' ? (
-                                <div className="relative h-[300px] md:h-[400px] w-full flex items-center justify-center overflow-hidden">
-                                    <img src={block.content.imageUrl} className="absolute inset-0 w-full h-full object-cover opacity-60" />
-                                    <div className="relative z-10 text-center max-w-4xl px-4">
-                                        <h1 className="text-2xl md:text-3xl lg:text-5xl font-bold text-white mb-4 drop-shadow-lg">{block.content.title}</h1>
-                                        <p className="text-base md:text-lg text-gray-200 mb-8 max-w-2xl mx-auto">{block.content.description}</p>
-                                        {block.content.showCta && <button className="bg-brand-primary text-brand-dark px-6 md:px-8 py-2 md:py-3 rounded-full font-bold text-base md:text-lg">{block.content.ctaText}</button>}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="py-8 md:py-12">
-                                    <h2 className="text-xl md:text-2xl font-bold text-white mb-6">{block.content.title}</h2>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        {[1, 2, 3, 4].map(i => (
-                                            <div key={i} className="bg-brand-card aspect-video rounded-lg border border-white/10 flex items-center justify-center text-gray-600">
-                                                <span className="text-xs uppercase font-bold">Preview do Curso</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
                 </div>
             </div>
 
-            {/* Right: Tools & Sortable List */}
-            <div className="w-full md:w-96 lg:w-[420px] xl:w-[480px] bg-brand-card border-l border-white/10 flex flex-col h-full z-30 shadow-2xl">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-brand-card sticky top-0 z-20">
-                    <h2 className="font-bold text-white text-sm md:text-base">Layout</h2>
-                    <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-gray-400 hidden md:inline-block">
-                            {isSaving ? <span className="flex items-center gap-1 text-yellow-500 font-mono"><Loader2 size={10} className="animate-spin" /> Salvando...</span> : (lastSavedTime ? <span className="text-green-500/50 font-mono">Salvo às {lastSavedTime.toLocaleTimeString()}</span> : '')}
-                        </span>
-                        <button id="save-layout-btn" onClick={handleSave} disabled={isSaving} className="bg-brand-primary text-brand-dark p-2 rounded text-xs font-bold hover:brightness-110 flex items-center gap-2 disabled:opacity-50">
-                            <Save size={16} />
+            {/* ── RIGHT: Tool Panel ── */}
+            <div className="w-[380px] xl:w-[420px] flex flex-col h-full z-30 shrink-0" style={{background:'#050707'}}>
+
+                {/* Panel header */}
+                <div className="px-5 py-4 border-b border-white/3 shrink-0">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <div className="eyebrow text-[10px] mb-0.5">Workspace</div>
+                            <h2 className="text-[15px] font-bold text-white tracking-tight">Construtor de conteúdo</h2>
+                        </div>
+                    </div>
+
+                    {/* Tab switcher: Layout / Cursos */}
+                    <div className="flex bg-brand-dark/80 p-1 rounded-xl border border-white/6 gap-1">
+                        <button
+                            onClick={() => setOpenBlockId(null)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-all ${
+                                openBlockId !== '__courses__'
+                                    ? 'bg-brand-primary/15 text-brand-primary border border-brand-primary/25'
+                                    : 'text-gray-500 hover:text-gray-300'
+                            }`}
+                        >
+                            <LayoutIcon size={11} /> Layout
+                        </button>
+                        <button
+                            onClick={() => setOpenBlockId('__courses__')}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-all ${
+                                openBlockId === '__courses__'
+                                    ? 'bg-brand-primary/15 text-brand-primary border border-brand-primary/25'
+                                    : 'text-gray-500 hover:text-gray-300'
+                            }`}
+                        >
+                            <BookOpen size={11} /> Cursos
                         </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-4 custom-scrollbar">
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                        <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-                            <div className="space-y-3">
-                                {blocks.map((block) => (
-                                    <SortablePageBlock
-                                        key={block.id}
-                                        block={block}
-                                        openBlockId={openBlockId}
-                                        setOpenBlockId={setOpenBlockId}
-                                        removeBlock={removeBlock}
-                                        updateBlock={updateBlock}
-                                    />
-                                ))}
-                            </div>
-                        </SortableContext>
-                    </DndContext>
-
-                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/10">
-                        <button onClick={() => addBlock('hero_banner')} className="p-3 border border-dashed border-white/20 rounded-xl text-gray-400 hover:text-white hover:border-brand-primary flex flex-col items-center gap-2 transition-colors text-xs text-center">
-                            <ImageIcon size={20} />
-                            <span className="font-bold">Banner</span>
-                        </button>
-                        <button onClick={() => addBlock('content_list')} className="p-3 border border-dashed border-white/20 rounded-xl text-gray-400 hover:text-white hover:border-brand-primary flex flex-col items-center gap-2 transition-colors text-xs text-center">
-                            <ListIcon size={20} />
-                            <span className="font-bold">Lista de Cursos</span>
-                        </button>
-                    </div>
+                {/* Panel body */}
+                <div className="flex-1 overflow-y-auto scrollbar-subtle">
+                    {openBlockId === '__courses__' ? (
+                        /* Courses quick-view */
+                        <CoursesPanel />
+                    ) : (
+                        /* Layout blocks */
+                        <div className="px-4 pt-4 pb-2 space-y-2">
+                            {blocks.length === 0 && (
+                                <div className="text-center py-12">
+                                    <div className="w-12 h-12 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mx-auto mb-3">
+                                        <LayoutIcon size={20} className="text-gray-700" />
+                                    </div>
+                                    <p className="text-[13px] text-gray-500 font-semibold">Nenhuma seção ainda</p>
+                                    <p className="text-[11px] text-gray-600 mt-1">Use os botões abaixo para adicionar.</p>
+                                </div>
+                            )}
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+                                    <div className="space-y-2">
+                                        {blocks.map((block) => (
+                                            <SortablePageBlock
+                                                key={block.id}
+                                                block={block}
+                                                openBlockId={openBlockId}
+                                                setOpenBlockId={setOpenBlockId}
+                                                removeBlock={removeBlock}
+                                                updateBlock={updateBlock}
+                                            />
+                                        ))}
+                                    </div>
+                                </SortableContext>
+                            </DndContext>
+                        </div>
+                    )}
                 </div>
+
+                {/* Add section footer */}
+                {openBlockId !== '__courses__' && (
+                    <div className="px-4 py-4 border-t border-white/6 shrink-0">
+                        <p className="text-[9px] font-mono uppercase tracking-widest text-gray-700 mb-2.5 px-1">+ Nova seção</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => addBlock('hero_banner')}
+                                className="group flex items-center gap-3 p-3 rounded-xl bg-brand-surface/40 hover:bg-blue-500/8 border border-white/6 hover:border-blue-500/25 transition-all text-left"
+                            >
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/18 flex items-center justify-center shrink-0 transition-colors">
+                                    <ImageIcon size={14} className="text-blue-400" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[12px] font-semibold text-gray-300 group-hover:text-white transition-colors">Banner</p>
+                                    <p className="text-[10px] text-gray-600">Hero com imagem</p>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => addBlock('content_list')}
+                                className="group flex items-center gap-3 p-3 rounded-xl bg-brand-surface/40 hover:bg-brand-primary/8 border border-white/6 hover:border-brand-primary/25 transition-all text-left"
+                            >
+                                <div className="w-8 h-8 rounded-lg bg-brand-primary/10 group-hover:bg-brand-primary/18 flex items-center justify-center shrink-0 transition-colors">
+                                    <ListIcon size={14} className="text-brand-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[12px] font-semibold text-gray-300 group-hover:text-white transition-colors">Vitrine</p>
+                                    <p className="text-[10px] text-gray-600">Grid de cursos</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1547,12 +2325,33 @@ export const Builder: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [activeTab, setActiveTab] = useState<'courses' | 'pages'>('pages'); // Default to Layout
-
     const [isSaving, setIsSaving] = useState(false);
+    const [isUpdatingCovers, setIsUpdatingCovers] = useState(false);
 
     useEffect(() => {
         CourseService.getAll().then(setCourses);
     }, []);
+
+    const batchUpdateCovers = async () => {
+        if (!confirm('Atualizar as fotos de capa de todos os cursos?')) return;
+        setIsUpdatingCovers(true);
+        try {
+            for (const course of courses) {
+                const mapped = COURSE_COVER_MAP[course.title];
+                if (mapped) {
+                    const updated = { ...course, coverImage: mapped.cover, bannerImage: mapped.banner };
+                    await CourseService.save(updated);
+                }
+            }
+            const refreshed = await CourseService.getAll();
+            setCourses(refreshed);
+            alert('✅ Capas atualizadas com sucesso!');
+        } catch (e) {
+            alert('Erro ao atualizar capas.');
+        } finally {
+            setIsUpdatingCovers(false);
+        }
+    };
 
     const handleSave = async (course: Course) => {
         setIsSaving(true);
@@ -1572,170 +2371,336 @@ export const Builder: React.FC = () => {
         return <CourseContentEditor course={editingCourse} isSaving={isSaving} onBack={() => setEditingCourse(null)} onSave={handleSave} />;
     }
 
-    return (
-        <div className="p-8 max-w-7xl mx-auto pb-20">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Construtor</h1>
-                    <div className="flex bg-brand-light/5 p-1 rounded-lg inline-flex">
-                        <button onClick={() => setActiveTab('pages')} className={`px-4 py-2 rounded text-sm font-bold transition-colors ${activeTab === 'pages' ? 'bg-brand-primary text-brand-dark' : 'text-gray-400 hover:text-white'}`}>Layout</button>
-                        <button onClick={() => setActiveTab('courses')} className={`px-4 py-2 rounded text-sm font-bold transition-colors ${activeTab === 'courses' ? 'bg-brand-primary text-brand-dark' : 'text-gray-400 hover:text-white'}`}>Cursos</button>
-                    </div>
-                </div>
-                {activeTab === 'courses' && (
-                    <button
-                        onClick={() => setEditingCourse({
-                            id: `temp-${Date.now()}`,
-                            title: 'Novo Curso',
-                            description: 'Descrição do curso...',
-                            coverImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=1000',
-                            bannerImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=2000',
-                            author: 'Admin',
-                            modules: [],
-                            totalDuration: 0,
-                            progress: 0,
-                            tags: []
-                        })}
-                        className="bg-brand-primary text-brand-dark px-4 py-2 rounded font-bold flex items-center gap-2 hover:brightness-110"
-                    >
-                        <Plus size={18} /> Novo Curso
+    // Tabs header — shared between both views
+    const TabsHeader = ({ compact = false }: { compact?: boolean }) => (
+        <div className={`flex items-center justify-between ${compact ? 'px-6 py-3' : 'px-6 lg:px-10 pt-8 pb-6'}`} style={compact ? {background:'#050707', borderBottom:'1px solid rgba(255,255,255,0.04)'} : {}}>
+            <div className={`flex items-center ${compact ? 'gap-5' : 'flex-col lg:flex-row gap-4 w-full'}`}>
+                {!compact && <div className="w-full lg:w-auto"><div className="eyebrow mb-1 text-[10px]">Workspace</div><h1 className="text-3xl font-bold text-white tracking-tight">Construtor de conteúdo</h1></div>}
+                {compact && <h2 className="text-sm font-bold text-white tracking-tight">Construtor de conteúdo</h2>}
+                <div className="inline-flex bg-brand-card-raised/60 p-1 rounded-xl border border-white/5">
+                    <button onClick={() => setActiveTab('pages')} className={`px-4 py-2 rounded-lg text-[12px] font-mono uppercase tracking-wider transition-all ${activeTab === 'pages' ? 'bg-gradient-premium text-brand-dark font-bold shadow-neon' : 'text-gray-400 hover:text-white'}`}>
+                        <LayoutIcon className="w-3.5 h-3.5 inline mr-1.5" /> Layout
                     </button>
-                )}
+                    <button onClick={() => setActiveTab('courses')} className={`px-4 py-2 rounded-lg text-[12px] font-mono uppercase tracking-wider transition-all ${activeTab === 'courses' ? 'bg-gradient-premium text-brand-dark font-bold shadow-neon' : 'text-gray-400 hover:text-white'}`}>
+                        <BookOpen className="w-3.5 h-3.5 inline mr-1.5" /> Cursos
+                    </button>
+                </div>
             </div>
-
-            {activeTab === 'pages' ? <PageBuilder /> : (
-                <div className="grid gap-4">
-                    {courses.length === 0 && <div className="text-gray-400 text-center py-10">Nenhum curso encontrado. Crie o primeiro!</div>}
-                    {courses.map(c => (
-                        <div key={c.id} className="bg-brand-card p-6 rounded-xl border border-white/10 flex justify-between items-center group hover:border-brand-primary/50 transition-colors">
-                            <div className="flex items-center gap-4">
-                                <img src={c.coverImage} className="w-16 h-16 rounded object-cover" />
-                                <div>
-                                    <h3 className="font-bold text-white text-lg">{c.title}</h3>
-                                    <p className="text-sm text-gray-400">{c.modules.length} módulos • {c.modules.reduce((acc, m) => acc + m.lessons.length, 0)} aulas</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setEditingCourse(c)} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white font-medium flex items-center gap-2 transition-colors">
-                                    <Edit2 size={16} /> Editar
-                                </button>
-                                <button
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onClick={async (e) => {
-                                        e.stopPropagation(); // Prevent opening edit on bg click
-                                        console.log('🗑️ Delete course request:', c.id);
-                                        if (confirm('Tem certeza que deseja excluir este curso?')) {
-                                            try {
-                                                const id = c.id;
-                                                // Optimistic Update
-                                                setCourses(prev => prev.filter(course => course.id !== id));
-                                                await CourseService.remove(id);
-                                                // Sync
-                                                const updated = await CourseService.getAll();
-                                                setCourses(updated);
-                                            } catch (err: any) {
-                                                console.error('Delete error:', err);
-                                                alert('Erro ao excluir curso: ' + err.message);
-                                            }
-                                        }
-                                    }} className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors">
-                                    <Trash size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+            {activeTab === 'courses' && (
+                <div className="flex items-center gap-3 shrink-0">
+                    <button onClick={batchUpdateCovers} disabled={isUpdatingCovers || courses.length === 0} className="flex items-center gap-2 px-4 h-10 bg-white/5 hover:bg-brand-primary/10 hover:text-brand-primary border border-white/5 hover:border-brand-primary/30 rounded-xl text-sm text-white font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed" title="Atualizar capas de todos os cursos">
+                        {isUpdatingCovers ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                        {isUpdatingCovers ? 'Atualizando...' : 'Atualizar Capas'}
+                    </button>
+                    <button onClick={() => { const seed = `new-${Date.now()}`; setEditingCourse({ id: `temp-${Date.now()}`, title: 'Novo Curso', description: 'Descrição do curso...', coverImage: pickImage(COURSE_COVERS, seed), bannerImage: pickImage(COURSE_BANNERS, seed + 'b'), author: DEFAULT_AUTHOR, modules: [], totalDuration: 0, progress: 0, tags: [] }); }} className="btn-primary-premium">
+                        <Plus size={18} /> Novo curso
+                    </button>
                 </div>
             )}
+        </div>
+    );
+
+    // ── LAYOUT TAB: full-screen, sem container restrito ──
+    if (activeTab === 'pages') {
+        return (
+            <div className="flex flex-col h-full min-h-0">
+                <TabsHeader compact />
+                <div className="flex-1 overflow-hidden min-h-0">
+                    <PageBuilder />
+                </div>
+            </div>
+        );
+    }
+
+    // ── CURSOS TAB: layout normal com padding ──
+    return (
+        <div className="p-6 lg:p-10 max-w-7xl mx-auto pb-24">
+            <TabsHeader />
+            <div className="mt-6">{(
+                <div className="space-y-3">
+                    {courses.length === 0 && (
+                        <div className="panel-premium p-14 text-center">
+                            <BookOpen className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                            <p className="text-gray-400 mb-1">Nenhum curso encontrado.</p>
+                            <p className="text-xs text-gray-600">Crie o primeiro curso para começar.</p>
+                        </div>
+                    )}
+                    {courses.map((c, idx) => {
+                        const totalLessons = c.modules.reduce((acc, m) => acc + m.lessons.length, 0);
+                        return (
+                            <motion.div
+                                key={c.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: idx * 0.04 }}
+                                className="module-card group"
+                            >
+                                <div className="p-4 flex flex-col md:flex-row items-start md:items-center gap-4">
+                                    <div className="relative shrink-0">
+                                        <div className="absolute -inset-1 bg-gradient-premium opacity-0 group-hover:opacity-50 blur-lg rounded-xl transition-opacity" />
+                                        <img src={c.coverImage} alt={c.title} className="relative w-20 h-20 rounded-xl object-cover border border-white/10" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-white text-[16px] tracking-tight truncate">{c.title}</h3>
+                                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                                            <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                                                {c.modules.length} módulos
+                                            </span>
+                                            <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">
+                                                {totalLessons} aulas
+                                            </span>
+                                            {c.author && (
+                                                <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500">
+                                                    · {c.author}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 shrink-0 self-stretch md:self-auto">
+                                        <button
+                                            onClick={() => setEditingCourse(c)}
+                                            className="flex items-center gap-2 px-4 h-10 bg-white/5 hover:bg-brand-primary/10 hover:text-brand-primary border border-white/5 hover:border-brand-primary/30 rounded-xl text-sm text-white font-medium transition-all"
+                                        >
+                                            <Edit2 size={14} /> Editar
+                                        </button>
+                                        <button
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (confirm('Tem certeza que deseja excluir este curso?')) {
+                                                    try {
+                                                        const id = c.id;
+                                                        setCourses(prev => prev.filter(course => course.id !== id));
+                                                        await CourseService.remove(id);
+                                                        const updated = await CourseService.getAll();
+                                                        setCourses(updated);
+                                                    } catch (err: any) {
+                                                        alert('Erro ao excluir curso: ' + err.message);
+                                                    }
+                                                }
+                                            }}
+                                            className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-red-500/10 hover:text-red-400 border border-white/5 hover:border-red-500/30 text-gray-400 rounded-xl transition-all"
+                                            title="Excluir"
+                                        >
+                                            <Trash size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </div>
+            )}</div>
         </div>
     );
 };
 
 export const Analytics: React.FC = () => {
-    // Mock Data for Visualization
-    const enrollmentData = [
-        { name: 'Jan', students: 45 }, { name: 'Fev', students: 52 }, { name: 'Mar', students: 48 },
-        { name: 'Abr', students: 61 }, { name: 'Mai', students: 55 }, { name: 'Jun', students: 67 },
-    ];
+    const [users, setUsers] = useState<User[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const completionData = [
-        { name: 'Concluído', value: 400, color: '#00D766' },
-        { name: 'Em andamento', value: 300, color: '#3B82F6' },
-        { name: 'Não iniciado', value: 100, color: '#6B7280' },
-    ];
+    useEffect(() => {
+        Promise.all([
+            UserService.getUsers(),
+            CourseService.getAll()
+        ]).then(([u, c]) => {
+            setUsers(u);
+            setCourses(c);
+            setLoading(false);
+        });
+    }, []);
 
-    return (
-        <div className="p-8 max-w-7xl mx-auto pb-20">
-            <h1 className="text-3xl font-bold text-white mb-8">Analytics</h1>
+    const totalStudents = users.filter(u => u.role === UserRole.STUDENT).length;
+    const totalAdmins = users.filter(u => u.role === UserRole.ADMIN).length;
+    const totalMod = users.filter(u => u.role === UserRole.MODERATOR).length;
+    const activeUsers = users.filter(u => u.status === 'active').length;
+    const totalLessons = courses.reduce((acc, c) => acc + c.modules.reduce((a, m) => a + m.lessons.length, 0), 0);
+    const totalModules = courses.reduce((acc, c) => acc + c.modules.length, 0);
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-brand-card p-6 rounded-xl border border-white/10">
-                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-2">Total de Alunos</h3>
-                    <div className="text-3xl font-bold text-white">1,248</div>
-                    <div className="text-green-500 text-xs mt-1 flex items-center gap-1"><ArrowUp size={12} /> +12% esse mês</div>
-                </div>
-                <div className="bg-brand-card p-6 rounded-xl border border-white/10">
-                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-2">Taxa de Conclusão</h3>
-                    <div className="text-3xl font-bold text-white">68%</div>
-                    <div className="text-green-500 text-xs mt-1 flex items-center gap-1"><ArrowUp size={12} /> +5% esse mês</div>
-                </div>
-                <div className="bg-brand-card p-6 rounded-xl border border-white/10">
-                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-2">Tempo Médio</h3>
-                    <div className="text-3xl font-bold text-white">12h 30m</div>
-                    <div className="text-gray-500 text-xs mt-1">por curso</div>
-                </div>
+    // Build monthly user registration chart from real data
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const now = new Date();
+    const enrollmentData = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        const count = users.filter(u => {
+            const created = new Date(u.createdAt);
+            return created.getFullYear() === d.getFullYear() && created.getMonth() === d.getMonth();
+        }).length;
+        return { name: monthNames[d.getMonth()], alunos: count };
+    });
+
+    // Role distribution for pie chart
+    const roleData = [
+        { name: 'Alunos', value: totalStudents || 1, color: '#25D366' },
+        { name: 'Moderadores', value: totalMod || 0, color: '#3B82F6' },
+        { name: 'Admins', value: totalAdmins || 0, color: '#8B5CF6' },
+    ].filter(d => d.value > 0);
+
+    // Course content breakdown
+    const courseData = courses.slice(0, 6).map(c => ({
+        name: c.title.slice(0, 18) + (c.title.length > 18 ? '…' : ''),
+        aulas: c.modules.reduce((a, m) => a + m.lessons.length, 0),
+        modulos: c.modules.length,
+    }));
+
+    const tooltipStyle = { backgroundColor: '#0B0D0C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' };
+    const tooltipItemStyle = { color: '#C8CFCD', fontSize: 12 };
+
+    const StatCard: React.FC<{ label: string; value: string | number; sub?: string; trend?: 'up' | 'neutral'; icon: React.FC<any> }> = ({ label, value, sub, trend, icon: Icon }) => (
+        <div className="panel-premium p-6 flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0">
+                <Icon size={20} />
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-brand-card p-6 rounded-xl border border-white/10 h-80">
-                    <h3 className="text-white font-bold mb-4">Novos Alunos (Semestral)</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={enrollmentData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                            <XAxis dataKey="name" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#1E1E24', border: '1px solid #333', borderRadius: '8px' }}
-                                itemStyle={{ color: '#fff' }}
-                                cursor={{ fill: '#ffffff10' }}
-                            />
-                            <Bar dataKey="students" fill="#00D766" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-                <div className="bg-brand-card p-6 rounded-xl border border-white/10 h-80">
-                    <h3 className="text-white font-bold mb-4">Status dos Cursos</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <RePieChart>
-                            <Pie
-                                data={completionData}
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {completionData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip contentStyle={{ backgroundColor: '#1E1E24', border: '1px solid #333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-                            <Legend />
-                        </RePieChart>
-                    </ResponsiveContainer>
-                </div>
+            <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-1">{label}</div>
+                <div className="text-3xl font-bold text-white tracking-tight">{value}</div>
+                {sub && <div className={`text-[11px] mt-1 flex items-center gap-1 ${trend === 'up' ? 'text-brand-primary' : 'text-gray-500'}`}>
+                    {trend === 'up' && <ArrowUp size={11} />}{sub}
+                </div>}
             </div>
         </div>
     );
+
+    if (loading) return (
+        <div className="p-10 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-primary" />
+        </div>
+    );
+
+    return (
+        <div className="p-6 lg:p-10 max-w-7xl mx-auto pb-24">
+            <div className="mb-10">
+                <div className="eyebrow mb-3">Painel</div>
+                <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Analytics</h1>
+                <p className="text-gray-400 text-sm mt-2">Dados reais da sua plataforma — atualizados em tempo real.</p>
+            </div>
+
+            {/* KPI cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
+                <StatCard label="Total de Membros" value={users.length} sub={`${activeUsers} ativos`} trend="up" icon={Users} />
+                <StatCard label="Alunos" value={totalStudents} sub={`${totalAdmins} admins · ${totalMod} mods`} icon={BookOpen} />
+                <StatCard label="Cursos Publicados" value={courses.length} sub={`${totalModules} módulos`} trend="up" icon={LayoutIcon} />
+                <StatCard label="Total de Aulas" value={totalLessons} sub="conteúdo disponível" icon={Play} />
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+                {/* Bar chart — enrollment per month */}
+                <div className="panel-premium p-6 xl:col-span-2">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <div className="eyebrow mb-1">Crescimento</div>
+                            <h3 className="text-[15px] font-bold text-white">Novos membros por mês</h3>
+                        </div>
+                    </div>
+                    <div className="h-56">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={enrollmentData} barCategoryGap="35%">
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis dataKey="name" stroke="transparent" tick={{ fill: '#5C6361', fontSize: 11, fontFamily: 'JetBrains Mono' }} tickLine={false} axisLine={false} />
+                                <YAxis stroke="transparent" tick={{ fill: '#5C6361', fontSize: 11, fontFamily: 'JetBrains Mono' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                                <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} cursor={{ fill: 'rgba(37,211,102,0.05)' }} />
+                                <Bar dataKey="alunos" fill="#25D366" radius={[6, 6, 0, 0]} name="Novos membros" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Pie chart — role distribution */}
+                <div className="panel-premium p-6">
+                    <div className="eyebrow mb-1">Membros</div>
+                    <h3 className="text-[15px] font-bold text-white mb-4">Distribuição por função</h3>
+                    <div className="h-44">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RePieChart>
+                                <Pie data={roleData} innerRadius={52} outerRadius={72} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                                    {roleData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                                </Pie>
+                                <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} />
+                            </RePieChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-col gap-2 mt-3">
+                        {roleData.map(d => (
+                            <div key={d.name} className="flex items-center justify-between text-[12px]">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                                    <span className="text-gray-300">{d.name}</span>
+                                </div>
+                                <span className="font-mono font-bold text-white">{d.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Course content bar chart */}
+            {courseData.length > 0 && (
+                <div className="panel-premium p-6">
+                    <div className="eyebrow mb-1">Conteúdo</div>
+                    <h3 className="text-[15px] font-bold text-white mb-6">Aulas por curso</h3>
+                    <div className="h-52">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={courseData} layout="vertical" barCategoryGap="30%">
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                                <XAxis type="number" stroke="transparent" tick={{ fill: '#5C6361', fontSize: 11, fontFamily: 'JetBrains Mono' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                                <YAxis type="category" dataKey="name" width={120} stroke="transparent" tick={{ fill: '#8A928F', fontSize: 11 }} tickLine={false} axisLine={false} />
+                                <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} cursor={{ fill: 'rgba(37,211,102,0.04)' }} />
+                                <Bar dataKey="aulas" fill="#25D366" radius={[0, 6, 6, 0]} name="Aulas" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
+
+type RoleFilter = 'ALL' | UserRole;
+
+const roleBadgeClasses: Record<UserRole, string> = {
+    [UserRole.ADMIN]: 'bg-gradient-to-br from-purple-500/20 to-fuchsia-500/10 text-purple-300 border-purple-400/30',
+    [UserRole.MODERATOR]: 'bg-gradient-to-br from-sky-500/20 to-cyan-500/10 text-sky-300 border-sky-400/30',
+    [UserRole.STUDENT]: 'bg-gradient-to-br from-emerald-500/15 to-teal-500/5 text-emerald-300 border-emerald-400/25',
+};
+
+const roleLabel: Record<UserRole, string> = {
+    [UserRole.ADMIN]: 'Administrador',
+    [UserRole.MODERATOR]: 'Moderador',
+    [UserRole.STUDENT]: 'Aluno',
+};
 
 export const UserPanel: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
 
-    // Add User Form State
+    // Add user modal state
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [newUser, setNewUser] = useState({ name: '', email: '', role: UserRole.STUDENT, phone: '' });
-    const [isadding, setIsAdding] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+    const [addUserError, setAddUserError] = useState<string | null>(null);
+    const [createdUserCredentials, setCreatedUserCredentials] = useState<
+        { email: string; password: string } | null
+    >(null);
+
+    // Edit user modal state
+    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
+
+    // Delete confirmation state
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Transient feedback toast
+    const [toast, setToast] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+    const showToast = (kind: 'success' | 'error', text: string) => {
+        setToast({ kind, text });
+        window.setTimeout(() => setToast(null), 3200);
+    };
 
     useEffect(() => {
         UserService.getUsers().then(u => {
@@ -1744,123 +2709,482 @@ export const UserPanel: React.FC = () => {
         });
     }, []);
 
-    const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(filter.toLowerCase()) ||
-        u.email.toLowerCase().includes(filter.toLowerCase()) ||
-        (u.phone && u.phone.includes(filter))
-    );
+    const filteredUsers = users.filter(u => {
+        if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
+        const q = filter.toLowerCase().trim();
+        if (!q) return true;
+        return (
+            u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            (u.phone && u.phone.includes(q))
+        );
+    });
+
+    const stats = {
+        total: users.length,
+        admins: users.filter(u => u.role === UserRole.ADMIN).length,
+        moderators: users.filter(u => u.role === UserRole.MODERATOR).length,
+        students: users.filter(u => u.role === UserRole.STUDENT).length,
+    };
 
     const handleAddUser = async () => {
         setIsAdding(true);
+        setAddUserError(null);
+        // Generate a cryptographically-strong one-time password. The admin will
+        // see it once, copy it, and send it to the user through a secure
+        // channel. The user is expected to rotate it on first login.
+        const oneTimePassword = generateSecurePassword(14);
         try {
-            await AuthService.createUser(newUser.name, newUser.email, 'mudar123', newUser.role, newUser.phone); // Default password for manual creation
+            await AuthService.createUser(
+                newUser.name,
+                newUser.email,
+                oneTimePassword,
+                newUser.role,
+                newUser.phone,
+            );
             const updatedUsers = await UserService.getUsers();
             setUsers(updatedUsers);
             setIsAddModalOpen(false);
+            setCreatedUserCredentials({ email: newUser.email, password: oneTimePassword });
             setNewUser({ name: '', email: '', role: UserRole.STUDENT, phone: '' });
-            alert('Usuário criado com sucesso! Senha padrão: mudar123');
-        } catch (e: any) {
-            alert('Erro ao criar usuário: ' + e.message);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+            setAddUserError(msg);
         } finally {
             setIsAdding(false);
         }
     };
 
+    const handleSaveEdit = async () => {
+        if (!editingUser) return;
+        setIsSavingEdit(true);
+        setEditError(null);
+        try {
+            await UserService.updateUser(editingUser);
+            setUsers(prev => prev.map(u => (u.id === editingUser.id ? editingUser : u)));
+            setEditingUser(null);
+            showToast('success', 'Usuário atualizado com sucesso.');
+        } catch (e) {
+            setEditError(e instanceof Error ? e.message : 'Erro ao atualizar.');
+        } finally {
+            setIsSavingEdit(false);
+        }
+    };
+
+    const handleQuickToggleStatus = async (u: User) => {
+        const nextStatus: 'active' | 'inactive' = u.status === 'active' ? 'inactive' : 'active';
+        try {
+            await UserService.setUserStatus(u.id, nextStatus);
+            setUsers(prev => prev.map(x => (x.id === u.id ? { ...x, status: nextStatus } : x)));
+            showToast(
+                'success',
+                nextStatus === 'active' ? 'Usuário reativado.' : 'Usuário suspenso.',
+            );
+        } catch (e) {
+            showToast('error', e instanceof Error ? e.message : 'Erro ao alterar status.');
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!userToDelete) return;
+        setIsDeleting(true);
+        try {
+            await UserService.deleteUser(userToDelete.id);
+            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+            setUserToDelete(null);
+            showToast('success', 'Usuário removido.');
+        } catch (e) {
+            showToast('error', e instanceof Error ? e.message : 'Erro ao remover.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     if (loading) return <div className="p-8"><Loader2 className="animate-spin text-brand-primary" /></div>;
 
+    const roleFilters: { key: RoleFilter; label: string; count: number }[] = [
+        { key: 'ALL', label: 'Todos', count: stats.total },
+        { key: UserRole.ADMIN, label: 'Administradores', count: stats.admins },
+        { key: UserRole.MODERATOR, label: 'Moderadores', count: stats.moderators },
+        { key: UserRole.STUDENT, label: 'Alunos', count: stats.students },
+    ];
+
     return (
-        <div className="p-8 max-w-7xl mx-auto pb-20">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-white">Usuários</h1>
-                <div className="flex gap-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 text-gray-500 w-4 h-4" />
-                        <input
-                            value={filter}
-                            onChange={e => setFilter(e.target.value)}
-                            placeholder="Buscar por nome, email ou telefone..."
-                            className="bg-brand-card border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-brand-primary outline-none w-64"
-                        />
+        <div className="p-6 lg:p-10 max-w-7xl mx-auto pb-24">
+            {/* Header */}
+            <div className="mb-8">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                    <div>
+                        <div className="text-xs uppercase tracking-[0.2em] text-brand-primary/80 font-semibold mb-2">Gestão de acessos</div>
+                        <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Usuários</h1>
+                        <p className="text-gray-400 text-sm mt-2 max-w-xl">
+                            Adicione, edite, promova ou suspenda membros da sua área de membros.
+                            Mudanças de função afetam imediatamente as permissões do usuário.
+                        </p>
                     </div>
-                    <button onClick={() => setIsAddModalOpen(true)} className="bg-brand-primary text-brand-dark px-4 py-2 rounded font-bold text-sm flex items-center gap-2 hover:brightness-110">
-                        <Plus size={16} /> Adicionar Usuário
-                    </button>
-                    <button className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded font-bold text-sm">Exportar CSV</button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="bg-brand-primary text-brand-dark px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:brightness-110 shadow-lg shadow-brand-primary/20 transition-all"
+                        >
+                            <UserPlus size={16} /> Adicionar usuário
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-brand-card rounded-xl overflow-hidden border border-white/10">
+            {/* Filters & search */}
+            <div className="flex flex-col md:flex-row gap-3 mb-6">
+                <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                    <input
+                        value={filter}
+                        onChange={e => setFilter(e.target.value)}
+                        placeholder="Buscar por nome, email ou telefone..."
+                        className="w-full bg-brand-card border border-white/10 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/10 outline-none transition"
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {roleFilters.map(f => {
+                        const active = roleFilter === f.key;
+                        return (
+                            <button
+                                key={f.key}
+                                onClick={() => setRoleFilter(f.key)}
+                                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${active
+                                    ? 'bg-brand-primary/15 border-brand-primary/50 text-brand-primary shadow-sm shadow-brand-primary/10'
+                                    : 'bg-brand-card border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                                    }`}
+                            >
+                                {f.label}
+                                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${active ? 'bg-brand-primary/20' : 'bg-white/5'}`}>{f.count}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Table card */}
+            <div className="bg-brand-card rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-400">
-                        <thead className="bg-black/20 text-gray-200 font-bold uppercase text-xs">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-white/[0.02] text-gray-500 font-semibold uppercase text-[10px] tracking-[0.1em]">
                             <tr>
-                                <th className="p-4">Usuário</th>
-                                <th className="p-4">Email</th>
-                                <th className="p-4">Telefone</th>
-                                <th className="p-4">Função</th>
-                                <th className="p-4">Data Cadastro</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 text-right">Ações</th>
+                                <th className="px-5 py-4">Membro</th>
+                                <th className="px-5 py-4 hidden md:table-cell">Contato</th>
+                                <th className="px-5 py-4">Função</th>
+                                <th className="px-5 py-4 hidden lg:table-cell">Desde</th>
+                                <th className="px-5 py-4">Status</th>
+                                <th className="px-5 py-4 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredUsers.map(u => (
-                                <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                    <td className="p-4 flex items-center gap-3">
-                                        <img src={u.avatar} className="w-8 h-8 rounded-full object-cover" />
-                                        <span className="text-white font-medium">{u.name}</span>
-                                    </td>
-                                    <td className="p-4">{u.email}</td>
-                                    <td className="p-4 font-mono text-xs">{u.phone || '-'}</td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${u.role === 'ADMIN' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' : (u.role === 'MODERATOR' ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' : 'border-gray-500/30 text-gray-400 bg-gray-500/10')}`}>
-                                            {u.role}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-xs font-mono">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
-                                    <td className="p-4">
-                                        <span className="flex items-center gap-1.5 text-green-400 text-xs">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> Ativo
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-right flex gap-2 justify-end">
-                                        <button className="text-gray-400 hover:text-white p-1" title="Mais opções"><MoreHorizontal size={16} /></button>
-                                        <button onClick={() => { if (window.confirm(`Tem certeza que deseja excluir o usuário ${u.name}?`)) alert('Funcionalidade de exclusão em desenvolvimento'); }} className="text-gray-400 hover:text-red-400 p-1" title="Excluir"><Trash size={16} /></button>
+                            {filteredUsers.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="px-5 py-16 text-center text-gray-500 text-sm">
+                                        Nenhum usuário encontrado com os filtros atuais.
                                     </td>
                                 </tr>
-                            ))}
+                            )}
+                            {filteredUsers.map(u => {
+                                const inactive = u.status === 'inactive';
+                                return (
+                                    <tr
+                                        key={u.id}
+                                        className={`border-t border-white/5 hover:bg-white/[0.03] transition-colors ${inactive ? 'opacity-60' : ''}`}
+                                    >
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative shrink-0">
+                                                    <img src={u.avatar} className="w-10 h-10 rounded-full object-cover border border-white/10" alt="" />
+                                                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-brand-card ${inactive ? 'bg-gray-500' : 'bg-emerald-400'}`} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-white font-medium truncate">{u.name}</div>
+                                                    <div className="text-xs text-gray-500 md:hidden truncate">{u.email}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4 hidden md:table-cell">
+                                            <div className="text-gray-300 text-sm truncate max-w-[220px]">{u.email}</div>
+                                            {u.phone && (
+                                                <div className="text-gray-500 text-xs font-mono">{u.phone}</div>
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${roleBadgeClasses[u.role]}`}>
+                                                {u.role === UserRole.ADMIN && <Shield size={10} />}
+                                                {u.role === UserRole.MODERATOR && <ShieldCheck size={10} />}
+                                                {u.role === UserRole.STUDENT && <UserIcon size={10} />}
+                                                {roleLabel[u.role]}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-4 hidden lg:table-cell text-xs text-gray-500 font-mono">
+                                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—'}
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <button
+                                                onClick={() => handleQuickToggleStatus(u)}
+                                                className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1 border transition-colors ${inactive
+                                                    ? 'bg-gray-500/10 border-gray-500/30 text-gray-400 hover:text-gray-200'
+                                                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:border-emerald-500/60'
+                                                    }`}
+                                                title={inactive ? 'Reativar usuário' : 'Suspender usuário'}
+                                            >
+                                                <span className={`w-1.5 h-1.5 rounded-full ${inactive ? 'bg-gray-400' : 'bg-emerald-400'}`} />
+                                                {inactive ? 'Suspenso' : 'Ativo'}
+                                            </button>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-1 justify-end">
+                                                <button
+                                                    onClick={() => { setEditingUser(u); setEditError(null); }}
+                                                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                                                    title="Editar"
+                                                    aria-label={`Editar ${u.name}`}
+                                                >
+                                                    <Pencil size={15} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setUserToDelete(u)}
+                                                    className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                                    title="Excluir"
+                                                    aria-label={`Excluir ${u.name}`}
+                                                >
+                                                    <Trash size={15} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
             </div>
 
+            {/* Add user modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-brand-card w-full max-w-md rounded-xl border border-white/20 p-6 space-y-4">
-                        <h3 className="text-xl font-bold text-white">Adicionar Usuário</h3>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setIsAddModalOpen(false); setAddUserError(null); }}>
+                    <div className="bg-brand-card w-full max-w-md rounded-2xl border border-white/10 p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Adicionar usuário</h3>
+                                <p className="text-xs text-gray-400 mt-1">Uma senha temporária será gerada automaticamente.</p>
+                            </div>
+                            <button onClick={() => { setIsAddModalOpen(false); setAddUserError(null); }} className="text-gray-400 hover:text-white p-1"><X size={18} /></button>
+                        </div>
                         <div className="space-y-3">
-                            <input value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-4 py-2 text-white" placeholder="Nome Completo" />
-                            <input value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-4 py-2 text-white" placeholder="Email" />
-                            <input value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-4 py-2 text-white" placeholder="Telefone" />
+                            <FieldInput label="Nome completo" value={newUser.name} onChange={v => setNewUser({ ...newUser, name: v })} placeholder="Maria Silva" />
+                            <FieldInput label="Email" type="email" value={newUser.email} onChange={v => setNewUser({ ...newUser, email: v })} placeholder="maria@exemplo.com" />
+                            <FieldInput label="Telefone" value={newUser.phone} onChange={v => setNewUser({ ...newUser, phone: v })} placeholder="+55 (11) 99999-0000" />
                             <VisualSelector
                                 label="Função"
                                 value={newUser.role}
                                 onChange={val => setNewUser({ ...newUser, role: val })}
-                                options={[{ value: UserRole.STUDENT, label: 'Aluno' }, { value: UserRole.MODERATOR, label: 'Moderador' }, { value: UserRole.ADMIN, label: 'Admin' }]}
+                                options={[
+                                    { value: UserRole.STUDENT, label: 'Aluno' },
+                                    { value: UserRole.MODERATOR, label: 'Moderador' },
+                                    { value: UserRole.ADMIN, label: 'Admin' },
+                                ]}
                             />
                         </div>
-                        <div className="flex justify-end gap-3 pt-4">
-                            <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-white px-4 py-2 text-sm font-bold">Cancelar</button>
-                            <button onClick={handleAddUser} disabled={isadding} className="bg-brand-primary text-brand-dark px-4 py-2 rounded text-sm font-bold hover:brightness-110 disabled:opacity-50">
-                                {isadding ? 'Criando...' : 'Adicionar'}
+                        {addUserError && (
+                            <div className="flex items-start gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+                                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                                <span>{addUserError}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-end gap-3 pt-2">
+                            <button onClick={() => { setIsAddModalOpen(false); setAddUserError(null); }} className="text-gray-400 hover:text-white px-4 py-2 text-sm font-bold">Cancelar</button>
+                            <button onClick={handleAddUser} disabled={isAdding || !newUser.name || !newUser.email} className="bg-brand-primary text-brand-dark px-4 py-2 rounded-lg text-sm font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                {isAdding && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                {isAdding ? 'Criando...' : 'Criar usuário'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Edit user modal */}
+            {editingUser && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
+                    <div className="bg-brand-card w-full max-w-md rounded-2xl border border-white/10 p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <img src={editingUser.avatar} className="w-11 h-11 rounded-full object-cover border border-white/10" alt="" />
+                                <div>
+                                    <h3 className="text-lg font-bold text-white leading-tight">Editar usuário</h3>
+                                    <p className="text-xs text-gray-500 truncate max-w-[200px]">{editingUser.email}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-white p-1"><X size={18} /></button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <FieldInput label="Nome" value={editingUser.name} onChange={v => setEditingUser({ ...editingUser, name: v })} />
+                            <FieldInput label="Email" type="email" value={editingUser.email} onChange={v => setEditingUser({ ...editingUser, email: v })} />
+                            <FieldInput label="Telefone" value={editingUser.phone || ''} onChange={v => setEditingUser({ ...editingUser, phone: v })} />
+                            <VisualSelector
+                                label="Função"
+                                value={editingUser.role}
+                                onChange={val => setEditingUser({ ...editingUser, role: val })}
+                                options={[
+                                    { value: UserRole.STUDENT, label: 'Aluno' },
+                                    { value: UserRole.MODERATOR, label: 'Moderador' },
+                                    { value: UserRole.ADMIN, label: 'Admin' },
+                                ]}
+                            />
+
+                            <div className="flex items-center justify-between bg-brand-dark/60 border border-white/10 rounded-xl px-4 py-3">
+                                <div>
+                                    <div className="text-sm font-semibold text-white">Acesso ativo</div>
+                                    <div className="text-xs text-gray-500">Usuário suspenso não consegue fazer login.</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={editingUser.status === 'active'}
+                                    onClick={() => setEditingUser({ ...editingUser, status: editingUser.status === 'active' ? 'inactive' : 'active' })}
+                                    className={`relative w-11 h-6 rounded-full transition-colors ${editingUser.status === 'active' ? 'bg-brand-primary' : 'bg-white/15'}`}
+                                >
+                                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${editingUser.status === 'active' ? 'translate-x-5' : ''}`} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {editError && (
+                            <div className="flex items-start gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+                                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                                <span>{editError}</span>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-2">
+                            <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-white px-4 py-2 text-sm font-bold">Cancelar</button>
+                            <button onClick={handleSaveEdit} disabled={isSavingEdit} className="bg-brand-primary text-brand-dark px-4 py-2 rounded-lg text-sm font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-2">
+                                {isSavingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                {isSavingEdit ? 'Salvando...' : 'Salvar alterações'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete confirmation */}
+            {userToDelete && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !isDeleting && setUserToDelete(null)}>
+                    <div className="bg-brand-card w-full max-w-sm rounded-2xl border border-red-500/30 p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center">
+                                <AlertTriangle className="w-5 h-5 text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Remover usuário?</h3>
+                                <p className="text-xs text-gray-400">Esta ação não pode ser desfeita.</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-300">
+                            Você está prestes a remover <strong className="text-white">{userToDelete.name}</strong>. O perfil será excluído do sistema, mas a conta de autenticação pode precisar ser removida manualmente no Supabase.
+                        </p>
+                        <div className="flex justify-end gap-3 pt-2">
+                            <button onClick={() => setUserToDelete(null)} disabled={isDeleting} className="text-gray-400 hover:text-white px-4 py-2 text-sm font-bold">Cancelar</button>
+                            <button onClick={handleDelete} disabled={isDeleting} className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-600 disabled:opacity-50 flex items-center gap-2">
+                                {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                {isDeleting ? 'Removendo...' : 'Sim, remover'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Created credentials modal */}
+            {createdUserCredentials && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-brand-card w-full max-w-md rounded-2xl border border-brand-primary/40 p-6 space-y-4 shadow-2xl">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-brand-primary/15 flex items-center justify-center">
+                                <ShieldCheck className="w-5 h-5 text-brand-primary" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Usuário criado</h3>
+                                <p className="text-xs text-gray-400">Copie a senha agora — ela não será exibida novamente.</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="bg-brand-dark border border-white/10 rounded-lg px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-gray-500">Email</div>
+                                <div className="text-sm text-white font-mono break-all">{createdUserCredentials.email}</div>
+                            </div>
+                            <div className="bg-brand-dark border border-brand-primary/30 rounded-lg px-3 py-2 flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="text-[10px] uppercase tracking-wide text-gray-500">Senha temporária</div>
+                                    <div className="text-sm text-brand-primary font-mono truncate">{createdUserCredentials.password}</div>
+                                </div>
+                                <button
+                                    onClick={() => navigator.clipboard.writeText(createdUserCredentials.password)}
+                                    className="shrink-0 p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white"
+                                    title="Copiar senha"
+                                    aria-label="Copiar senha"
+                                >
+                                    <Copy size={16} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex justify-end pt-2">
+                            <button
+                                onClick={() => setCreatedUserCredentials(null)}
+                                className="bg-brand-primary text-brand-dark px-4 py-2 rounded-lg text-sm font-bold hover:brightness-110"
+                            >
+                                Entendi, já copiei
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast */}
+            <AnimatePresence>
+                {toast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 16, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 16, scale: 0.95 }}
+                        className={`fixed bottom-6 right-6 z-[60] px-4 py-3 rounded-xl border shadow-2xl flex items-center gap-2 text-sm ${toast.kind === 'success'
+                            ? 'bg-brand-card border-brand-primary/40 text-white'
+                            : 'bg-brand-card border-red-500/40 text-white'
+                            }`}
+                    >
+                        {toast.kind === 'success'
+                            ? <CheckCircle className="w-4 h-4 text-brand-primary" />
+                            : <AlertCircle className="w-4 h-4 text-red-400" />}
+                        {toast.text}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
-}
+};
+
+/** Small labelled input used across modals — keeps visual consistency. */
+const FieldInput: React.FC<{
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+    type?: string;
+}> = ({ label, value, onChange, placeholder, type = 'text' }) => (
+    <label className="block">
+        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{label}</span>
+        <input
+            type={type}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="mt-1 w-full bg-brand-dark/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/10 outline-none transition"
+        />
+    </label>
+);
 
 export const UserProfile: React.FC<{ user: User, onUpdate: (u: User) => void }> = ({ user, onUpdate }) => {
     const [formData, setFormData] = useState(user);
@@ -1970,48 +3294,202 @@ export const UserProfile: React.FC<{ user: User, onUpdate: (u: User) => void }> 
 }
 
 export const ModerationView: React.FC = () => {
-    // Mock
-    const comments: Comment[] = [
-        { id: '1', userId: 'u1', userName: 'João Silva', userAvatar: DEFAULT_AVATAR, lessonId: 'l1', text: 'Excelente aula! Muito didático.', timestamp: new Date().toISOString(), status: 'pending', likes: 0, likedBy: [] },
-        { id: '2', userId: 'u2', userName: 'Maria Souza', userAvatar: DEFAULT_AVATAR, lessonId: 'l1', text: 'Fiquei com dúvida no minuto 5:30.', timestamp: new Date(Date.now() - 3600000).toISOString(), status: 'pending', likes: 0, likedBy: [] }
+    const [allComments, setAllComments] = useState<Comment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+    const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+    const load = async () => {
+        setLoading(true);
+        const data = await CommentService.getAllComments();
+        setAllComments(data);
+        setLoading(false);
+    };
+
+    useEffect(() => { load(); }, []);
+
+    const handleAction = async (comment: Comment, status: 'approved' | 'rejected') => {
+        setActionInProgress(comment.id);
+        try {
+            await CommentService.updateStatus(comment.id, comment.lessonId, status);
+            if (status === 'rejected') {
+                setAllComments(prev => prev.filter(c => c.id !== comment.id));
+            } else {
+                setAllComments(prev => prev.map(c => c.id === comment.id ? { ...c, status: 'approved' } : c));
+            }
+        } catch (e) {
+            console.error('Failed to update comment status', e);
+        } finally {
+            setActionInProgress(null);
+        }
+    };
+
+    const tabs: { key: 'pending' | 'approved' | 'rejected'; label: string; color: string }[] = [
+        { key: 'pending', label: 'Pendentes', color: 'text-yellow-400' },
+        { key: 'approved', label: 'Aprovados', color: 'text-brand-primary' },
+        { key: 'rejected', label: 'Rejeitados', color: 'text-red-400' },
     ];
 
+    const filtered = allComments.filter(c => c.status === activeTab);
+    const counts = {
+        pending: allComments.filter(c => c.status === 'pending').length,
+        approved: allComments.filter(c => c.status === 'approved').length,
+        rejected: allComments.filter(c => c.status === 'rejected').length,
+    };
+
+    const formatDate = (ts: string) => {
+        try {
+            return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        } catch { return ts; }
+    };
+
     return (
-        <div className="p-8 max-w-5xl mx-auto pb-20">
-            <h1 className="text-3xl font-bold text-white mb-8">Moderação</h1>
-
-            <div className="bg-brand-card border border-white/10 rounded-xl overflow-hidden">
-                <div className="flex border-b border-white/10">
-                    <button className="px-6 py-4 text-sm font-bold text-brand-primary border-b-2 border-brand-primary bg-brand-primary/5">Pendentes (2)</button>
-                    <button className="px-6 py-4 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5">Aprovados</button>
-                    <button className="px-6 py-4 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5">Rejeitados</button>
+        <div className="p-6 lg:p-8 max-w-5xl mx-auto pb-20">
+            {/* Header */}
+            <div className="mb-8">
+                <div className="eyebrow mb-1">Gestão</div>
+                <div className="flex items-center justify-between">
+                    <h1 className="text-[28px] font-bold text-white tracking-tight">Comentários</h1>
+                    <button
+                        onClick={load}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 text-gray-400 hover:text-white text-[12px] font-mono uppercase tracking-wider transition-colors"
+                    >
+                        <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                        Atualizar
+                    </button>
                 </div>
+            </div>
 
-                <div className="divide-y divide-white/5">
-                    {comments.map(c => (
-                        <div key={c.id} className="p-6 flex gap-4">
-                            <img src={c.userAvatar} className="w-10 h-10 rounded-full" />
-                            <div className="flex-1">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h4 className="font-bold text-white">{c.userName}</h4>
-                                        <span className="text-xs text-gray-500">Aula: Introdução ao Marketing</span>
-                                    </div>
-                                    <span className="text-xs text-gray-500">{new Date(c.timestamp).toLocaleDateString()}</span>
-                                </div>
-                                <p className="text-gray-300 text-sm bg-black/20 p-3 rounded mb-4">"{c.text}"</p>
-                                <div className="flex gap-3">
-                                    <button className="px-4 py-2 bg-green-500/10 text-green-500 hover:bg-green-500/20 rounded text-xs font-bold flex items-center gap-2">
-                                        <CheckCircle size={14} /> Aprovar
-                                    </button>
-                                    <button className="px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded text-xs font-bold flex items-center gap-2">
-                                        <XCircle size={14} /> Rejeitar
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+            {/* Summary cards */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+                {tabs.map(t => (
+                    <button
+                        key={t.key}
+                        onClick={() => setActiveTab(t.key)}
+                        className={`panel-premium p-4 text-left transition-all ${activeTab === t.key ? 'ring-1 ring-brand-primary/40 bg-brand-primary/5' : 'hover:bg-white/5'}`}
+                    >
+                        <div className={`text-2xl font-bold ${t.color}`}>{counts[t.key]}</div>
+                        <div className="text-[11px] font-mono uppercase tracking-wider text-gray-500 mt-0.5">{t.label}</div>
+                    </button>
+                ))}
+            </div>
+
+            {/* Tab panel */}
+            <div className="panel-premium overflow-hidden">
+                {/* Tab bar */}
+                <div className="flex border-b border-white/5">
+                    {tabs.map(t => (
+                        <button
+                            key={t.key}
+                            onClick={() => setActiveTab(t.key)}
+                            className={`px-6 py-4 text-[12px] font-bold font-mono uppercase tracking-wider transition-colors relative ${
+                                activeTab === t.key
+                                    ? `${t.color} border-b-2 border-current bg-white/3`
+                                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/3'
+                            }`}
+                        >
+                            {t.label}
+                            {counts[t.key] > 0 && (
+                                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === t.key ? 'bg-current/20' : 'bg-white/8 text-gray-400'}`}>
+                                    {counts[t.key]}
+                                </span>
+                            )}
+                        </button>
                     ))}
                 </div>
+
+                {/* Content */}
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                        <Loader2 size={28} className="animate-spin text-brand-primary" />
+                        <p className="text-[13px] text-gray-500 font-mono">Carregando comentários...</p>
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-3">
+                        <MessageSquare size={36} className="text-gray-700" />
+                        <p className="text-[14px] font-semibold text-gray-500">
+                            {activeTab === 'pending' ? 'Nenhum comentário pendente' :
+                             activeTab === 'approved' ? 'Nenhum comentário aprovado' :
+                             'Nenhum comentário rejeitado'}
+                        </p>
+                        <p className="text-[12px] text-gray-600">
+                            {activeTab === 'pending' ? 'Todos os comentários foram moderados.' :
+                             'Os comentários aparecerão aqui após serem moderados.'}
+                        </p>
+                    </div>
+                ) : (
+                    <AnimatePresence mode="popLayout">
+                        <div className="divide-y divide-white/5">
+                            {filtered.map(c => (
+                                <motion.div
+                                    key={c.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
+                                    className="p-5 flex gap-4 hover:bg-white/2 transition-colors"
+                                >
+                                    <img
+                                        src={c.userAvatar || DEFAULT_AVATAR}
+                                        alt={c.userName}
+                                        className="w-10 h-10 rounded-full object-cover ring-1 ring-white/10 shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                            <div>
+                                                <span className="text-[14px] font-semibold text-white">{c.userName}</span>
+                                                <span className="ml-2 text-[10px] font-mono text-gray-500 uppercase tracking-wider">
+                                                    Aula: {c.lessonId?.slice(0, 12) || '—'}
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] text-gray-600 font-mono shrink-0">{formatDate(c.timestamp)}</span>
+                                        </div>
+                                        <p className="text-[13px] text-gray-300 bg-black/20 px-3 py-2.5 rounded-lg mb-3 leading-relaxed border border-white/5">
+                                            "{c.text}"
+                                        </p>
+                                        {activeTab === 'pending' && (
+                                            <div className="flex gap-2">
+                                                <motion.button
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => handleAction(c, 'approved')}
+                                                    disabled={actionInProgress === c.id}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border border-brand-primary/20 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-colors disabled:opacity-50"
+                                                >
+                                                    {actionInProgress === c.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                                                    Aprovar
+                                                </motion.button>
+                                                <motion.button
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => handleAction(c, 'rejected')}
+                                                    disabled={actionInProgress === c.id}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-colors disabled:opacity-50"
+                                                >
+                                                    {actionInProgress === c.id ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={11} />}
+                                                    Rejeitar
+                                                </motion.button>
+                                            </div>
+                                        )}
+                                        {activeTab === 'approved' && (
+                                            <div className="flex items-center gap-1.5">
+                                                <CheckCircle size={12} className="text-brand-primary" />
+                                                <span className="text-[11px] font-mono text-brand-primary uppercase tracking-wider">Aprovado</span>
+                                                <motion.button
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => handleAction(c, 'rejected')}
+                                                    disabled={actionInProgress === c.id}
+                                                    className="ml-3 flex items-center gap-1 px-2.5 py-1 bg-red-500/8 hover:bg-red-500/15 text-red-400 border border-red-500/15 rounded-lg text-[10px] font-bold font-mono uppercase tracking-wider transition-colors disabled:opacity-50"
+                                                >
+                                                    <XCircle size={10} /> Remover
+                                                </motion.button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </AnimatePresence>
+                )}
             </div>
         </div>
     );
