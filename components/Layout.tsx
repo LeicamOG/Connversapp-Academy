@@ -18,20 +18,20 @@ interface LayoutProps {
   onSearch: (query: string) => void;
 }
 
+const SPRING = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] };
+
 const Layout: React.FC<LayoutProps> = ({
   children, user, currentView, onNavigate, onLogout, theme, searchQuery, onSearch
 }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Desktop
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Detect OS: true = Mac, false = Windows/Linux
   const isMac = typeof navigator !== 'undefined' &&
     /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
   const shortcutLabel = isMac ? '⌘K' : 'Ctrl K';
 
-  // Register keyboard shortcut Ctrl/Cmd + K → focus search
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const isModifier = isMac ? e.metaKey : e.ctrlKey;
@@ -40,7 +40,6 @@ const Layout: React.FC<LayoutProps> = ({
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
       }
-      // Escape → blur search
       if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
         searchInputRef.current?.blur();
       }
@@ -52,7 +51,6 @@ const Layout: React.FC<LayoutProps> = ({
   const isAdminOrMod = user.role === UserRole.ADMIN || user.role === UserRole.MODERATOR;
   const isAdmin = user.role === UserRole.ADMIN;
 
-  // Mock Notifications
   const notifications = [
     { id: 1, text: "Bem-vindo à nova plataforma!", time: "2 min atrás", type: "info" },
     { id: 2, text: "Novo curso disponível: Marketing", time: "1 hora atrás", type: "success" },
@@ -62,67 +60,88 @@ const Layout: React.FC<LayoutProps> = ({
   const roleLabel =
     user.role === UserRole.ADMIN ? 'Admin'
     : user.role === UserRole.MODERATOR ? 'Moderador'
-    : 'Membro Premium';
+    : 'Membro';
 
-  const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => {
+  const NavItem = ({ view, icon: Icon, label }: { view: ViewState; icon: any; label: string }) => {
     const active = currentView === view;
     return (
       <motion.button
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: 0.96 }}
         onClick={() => { onNavigate(view); setIsSidebarOpen(false); }}
-        className={`sidebar-nav-item ${active ? 'active' : ''} ${isSidebarCollapsed ? 'justify-center !px-0' : ''}`}
-        title={isSidebarCollapsed ? label : ''}
+        className={`sidebar-nav-item ${active ? 'active' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+        style={isSidebarCollapsed ? { padding: '0.65rem 0' } : undefined}
+        title={isSidebarCollapsed ? label : undefined}
       >
-        <Icon className={`w-[18px] h-[18px] ${isSidebarCollapsed ? '' : 'mr-3'}`} />
-        {!isSidebarCollapsed && <span className="tracking-tight">{label}</span>}
+        <Icon
+          className={`shrink-0 ${isSidebarCollapsed ? '' : 'mr-2.5'}`}
+          style={{ width: 15, height: 15, strokeWidth: 1.8 }}
+        />
+        {!isSidebarCollapsed && (
+          <span className="tracking-tight truncate">{label}</span>
+        )}
       </motion.button>
     );
   };
 
   const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     isSidebarCollapsed ? null : (
-      <div className="eyebrow-muted px-4 pt-6 pb-3">{children}</div>
+      <div className="eyebrow-muted px-3 pt-5 pb-2.5">{children}</div>
     );
 
+  const SIDEBAR_W = isSidebarCollapsed ? 68 : 264;
+
   return (
-    <div className="h-screen w-full bg-brand-dark text-white flex font-sans relative z-10 overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
+    <div className="min-h-screen w-full bg-brand-dark text-white flex font-sans relative z-10">
+
+      {/* Mobile overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
+            key="overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* ── SIDEBAR ── */}
       <motion.aside
-        animate={{ width: isSidebarCollapsed ? 84 : 280 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        animate={{ width: SIDEBAR_W }}
+        transition={SPRING}
         className={`sidebar-premium fixed lg:sticky top-0 left-0 h-screen z-50 flex flex-col shrink-0
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           transition-transform duration-300
         `}
       >
-        {/* Brand area */}
-        <div className={`px-5 pt-6 pb-4 flex items-center ${isSidebarCollapsed ? 'justify-center flex-col gap-6' : 'justify-between'}`}>
+        {/* Brand */}
+        <div
+          className={`px-4 pt-5 pb-4 flex items-center
+            ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}
+          `}
+        >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative shrink-0">
-              <div className="absolute inset-0 bg-brand-primary/30 blur-xl rounded-full" />
+            {/* Logo bezel */}
+            <div className="relative shrink-0 p-[2px] rounded-[10px] bg-white/4 border border-transparent">
+              <div className="absolute inset-0 bg-brand-primary/20 blur-xl rounded-full" />
               <img
                 src="https://i.imgur.com/vAJo2nR.png"
                 alt="Conversapp"
-                className="relative w-9 h-9 object-contain"
+                className="relative w-8 h-8 object-contain rounded-[8px]"
               />
             </div>
             {!isSidebarCollapsed && (
               <div className="flex flex-col leading-tight min-w-0">
-                <span className="text-[15px] font-bold text-white tracking-tight">Conversapp</span>
-                <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-brand-primary">Academy</span>
+                <span className="text-[14px] font-extrabold text-white tracking-tight">Conversapp</span>
+                <span
+                  className="text-[9px] font-mono uppercase tracking-[0.22em]"
+                  style={{ color: 'var(--green)' }}
+                >
+                  Academy
+                </span>
               </div>
             )}
           </div>
@@ -130,39 +149,43 @@ const Layout: React.FC<LayoutProps> = ({
           {/* Desktop collapse toggle */}
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex items-center justify-center w-7 h-7 rounded-full bg-white/5 hover:bg-brand-primary/10 border border-white/5 hover:border-brand-primary/30 text-gray-400 hover:text-brand-primary transition-colors"
+            className="hidden lg:flex items-center justify-center w-6 h-6 rounded-lg shrink-0
+              bg-white/4 hover:bg-white/8 border border-white/[0.03] hover:border-white/[0.08]
+              text-gray-500 hover:text-white transition-all duration-200"
             title={isSidebarCollapsed ? 'Expandir' : 'Recolher'}
           >
-            {isSidebarCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+            {isSidebarCollapsed
+              ? <ChevronRight style={{ width: 11, height: 11 }} />
+              : <ChevronLeft  style={{ width: 11, height: 11 }} />
+            }
           </button>
 
           {/* Mobile close */}
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden text-gray-400 hover:text-white"
+            className="lg:hidden text-gray-500 hover:text-white transition-colors p-1"
           >
-            <X className="w-5 h-5" />
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
-        <div className="divider-premium mx-4" />
+        <div className="divider-premium mx-3" />
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 mt-2 overflow-y-auto overflow-x-hidden scrollbar-subtle">
+        <nav className="flex-1 px-2.5 mt-1.5 overflow-y-auto overflow-x-hidden scrollbar-subtle">
           <SectionLabel>Navegação</SectionLabel>
-          <NavItem view="HOME" icon={Home} label="Início" />
-          <NavItem view="MY_PROFILE" icon={UserIcon} label="Meu Perfil" />
+          <NavItem view="HOME"       icon={Home}       label="Início" />
+          <NavItem view="MY_PROFILE" icon={UserIcon}   label="Meu Perfil" />
 
           {isAdminOrMod && (
             <>
               <SectionLabel>Gestão</SectionLabel>
-              <NavItem view="ADMIN_DASHBOARD" icon={BarChart} label="Analytics" />
-              <NavItem view="MODERATION" icon={MessageSquare} label="Comentários" />
-              <NavItem view="BUILDER" icon={LayoutIcon} label="Construtor" />
-
+              <NavItem view="ADMIN_DASHBOARD" icon={BarChart}    label="Analytics" />
+              <NavItem view="MODERATION"      icon={MessageSquare} label="Comentários" />
+              <NavItem view="BUILDER"         icon={LayoutIcon}  label="Construtor" />
               {isAdmin && (
                 <>
-                  <NavItem view="USERS" icon={Users} label="Usuários" />
+                  <NavItem view="USERS"        icon={Users}   label="Usuários" />
                   <NavItem view="INTEGRATIONS" icon={Webhook} label="Integrações" />
                 </>
               )}
@@ -171,88 +194,117 @@ const Layout: React.FC<LayoutProps> = ({
         </nav>
 
         {/* User footer */}
-        <div className="p-4 border-t border-white/5">
+        <div className="p-3 border-t border-white/[0.03]">
           <button
             onClick={() => onNavigate('MY_PROFILE')}
-            className={`flex items-center gap-3 w-full text-left p-2.5 rounded-xl hover:bg-white/5 transition-colors group ${isSidebarCollapsed ? 'justify-center' : ''}`}
+            className={`flex items-center w-full text-left p-2.5 rounded-[14px]
+              hover:bg-white/4 transition-all duration-200 group
+              ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}
+            `}
           >
-            <div className="relative shrink-0">
-              <div className="absolute inset-0 bg-gradient-premium rounded-full opacity-50 blur-md group-hover:opacity-80 transition-opacity" />
+            {/* Avatar bezel */}
+            <div className="relative shrink-0 p-[2px] rounded-full bg-white/4 border border-transparent group-hover:border-green-500/20 transition-colors">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-400/30 to-green-600/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
               <img
                 src={user.avatar}
                 alt={user.name}
-                className="relative w-10 h-10 rounded-full object-cover ring-2 ring-brand-primary/30"
+                className="relative w-9 h-9 rounded-full object-cover"
               />
-              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-brand-primary border-2 border-brand-dark" />
+              <div
+                className="absolute bottom-0 right-0 w-2 h-2 rounded-full border-2"
+                style={{ background: 'var(--green)', borderColor: 'var(--bg-0)' }}
+              />
             </div>
             {!isSidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold text-white truncate">{user.name}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-brand-primary truncate">{roleLabel}</p>
+                <p className="text-[12.5px] font-semibold text-white truncate leading-tight">{user.name}</p>
+                <p
+                  className="text-[9px] font-mono uppercase tracking-[0.16em] truncate"
+                  style={{ color: 'var(--green)' }}
+                >
+                  {roleLabel}
+                </p>
               </div>
             )}
           </button>
+
           {!isSidebarCollapsed && (
             <button
               onClick={onLogout}
-              className="w-full mt-2 flex items-center justify-center gap-2 text-[11px] text-gray-500 hover:text-red-400 py-1.5 transition-colors"
+              className="w-full mt-1.5 flex items-center justify-center gap-1.5
+                text-[10.5px] text-gray-600 hover:text-red-400 py-1.5
+                transition-colors duration-200"
             >
-              <LogOut className="w-3 h-3" /> Encerrar sessão
+              <LogOut style={{ width: 11, height: 11 }} />
+              Encerrar sessão
             </button>
           )}
         </div>
       </motion.aside>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen relative overflow-hidden">
-        {/* Header */}
-        <header className="header-premium h-16 sticky top-0 z-30 px-4 lg:px-8 flex items-center justify-between">
+      {/* ── MAIN ── */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+
+        {/* ── HEADER ── */}
+        <header className="header-premium h-14 sticky top-0 z-30 px-4 lg:px-6 flex items-center justify-between gap-4">
+
+          {/* Left: hamburger + search */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-2 text-gray-400 hover:text-white"
+              className="lg:hidden p-1.5 -ml-1 text-gray-500 hover:text-white transition-colors"
             >
-              <Menu className="w-5 h-5" />
+              <Menu style={{ width: 18, height: 18 }} />
             </button>
 
-            <div className="header-search hidden md:flex items-center px-4 h-10 w-full max-w-md">
-              <Search className="w-4 h-4 text-gray-500 mr-3 shrink-0" />
+            {/* Search pill */}
+            <div className="header-search hidden md:flex items-center px-3.5 h-9 w-full max-w-[380px]">
+              <Search style={{ width: 13, height: 13 }} className="text-gray-600 mr-2.5 shrink-0" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}
-                placeholder="Buscar cursos, módulos, aulas..."
-                className="bg-transparent border-none outline-none text-sm text-white w-full placeholder-gray-600"
+                placeholder="Buscar cursos, módulos..."
+                className="bg-transparent border-none outline-none text-[13px] text-white w-full placeholder-gray-700"
               />
               {!searchQuery && (
-                <kbd className="hidden lg:inline-flex items-center px-1.5 h-5 ml-3 rounded text-[10px] font-mono text-gray-500 border border-white/10 bg-white/5 shrink-0 whitespace-nowrap">
+                <kbd className="hidden lg:inline-flex items-center px-1.5 h-5 ml-2 rounded-md
+                  text-[9px] font-mono text-gray-600 border border-white/[0.04] bg-white/[0.03] shrink-0 whitespace-nowrap">
                   {shortcutLabel}
                 </kbd>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right: actions */}
+          <div className="flex items-center gap-1.5">
+
+            {/* Mobile: profile icon */}
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => onNavigate('MY_PROFILE')}
-              className="md:hidden p-2 text-gray-400 hover:text-white"
+              className="md:hidden p-2 text-gray-500 hover:text-white transition-colors"
             >
-              <UserIcon className="w-5 h-5" />
+              <UserIcon style={{ width: 16, height: 16 }} />
             </motion.button>
 
             {/* Notifications */}
             <div className="relative">
               <motion.button
-                whileTap={{ scale: 0.92 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className={`relative w-9 h-9 flex items-center justify-center rounded-full transition-all ${
-                  isNotificationsOpen ? 'bg-brand-primary/10 text-brand-primary' : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/5'
+                className={`relative w-8 h-8 flex items-center justify-center rounded-[10px] transition-all duration-200 ${
+                  isNotificationsOpen
+                    ? 'bg-green-500/10 text-green-400'
+                    : 'bg-white/4 hover:bg-white/7 text-gray-500 hover:text-gray-300 border border-transparent'
                 }`}
               >
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-primary rounded-full ring-2 ring-brand-dark shadow-[0_0_8px_#25D366]" />
+                <Bell style={{ width: 14, height: 14 }} />
+                <span
+                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ring-2 ring-[#040707]"
+                  style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }}
+                />
               </motion.button>
 
               <AnimatePresence>
@@ -260,29 +312,39 @@ const Layout: React.FC<LayoutProps> = ({
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)} />
                     <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      initial={{ opacity: 0, y: 6, scale: 0.97 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                      transition={{ duration: 0.18 }}
-                      className="absolute right-0 mt-2 w-80 panel-premium-raised z-50 overflow-hidden"
+                      exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                      transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+                      className="absolute right-0 mt-2 w-76 panel-premium-raised z-50 overflow-hidden"
+                      style={{ width: 300 }}
                     >
-                      <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                        <div className="font-bold text-white text-sm">Notificações</div>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-brand-primary">{notifications.length} novas</span>
+                      <div className="px-4 py-3 border-b border-white/[0.03] flex items-center justify-between">
+                        <span className="font-bold text-white text-[13px]">Notificações</span>
+                        <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: 'var(--green)' }}>
+                          {notifications.length} novas
+                        </span>
                       </div>
-                      <div className="max-h-80 overflow-y-auto scrollbar-subtle">
+                      <div className="max-h-72 overflow-y-auto scrollbar-subtle">
                         {notifications.map(n => (
-                          <div key={n.id} className="px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-0 flex gap-3">
-                            <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.type === 'success' ? 'bg-brand-primary shadow-[0_0_8px_#25D366]' : 'bg-blue-400'}`} />
+                          <div key={n.id} className="px-4 py-3 hover:bg-white/4 border-b border-white/4 last:border-0 flex gap-3 transition-colors">
+                            <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${
+                              n.type === 'success'
+                                ? 'bg-green-400 shadow-[0_0_8px_#25D366]'
+                                : 'bg-blue-400'
+                            }`} />
                             <div className="min-w-0">
-                              <p className="text-[13px] text-gray-100 leading-snug">{n.text}</p>
-                              <span className="text-[10px] text-gray-500 font-mono">{n.time}</span>
+                              <p className="text-[12.5px] text-gray-200 leading-snug">{n.text}</p>
+                              <span className="text-[10px] text-gray-600 font-mono">{n.time}</span>
                             </div>
                           </div>
                         ))}
                       </div>
-                      <div className="p-2 border-t border-white/5">
-                        <button className="w-full text-[11px] text-brand-primary font-bold hover:bg-brand-primary/5 py-2 rounded-lg transition-colors uppercase tracking-wider font-mono">
+                      <div className="p-2 border-t border-white/[0.03]">
+                        <button
+                          className="w-full text-[10px] font-bold hover:bg-white/4 py-2 rounded-lg transition-colors uppercase tracking-widest font-mono"
+                          style={{ color: 'var(--green)' }}
+                        >
                           Marcar todas como lidas
                         </button>
                       </div>
@@ -294,7 +356,7 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto w-full min-h-0">
+        <main className="flex-1 w-full">
           {children}
         </main>
       </div>

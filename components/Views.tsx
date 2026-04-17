@@ -221,12 +221,12 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
                 )}
             </div>
 
-            <div className="bg-brand-dark/80 border border-white/8 rounded-xl overflow-hidden">
+            <div className="bg-brand-dark/80 border border-transparent rounded-xl overflow-hidden">
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
 
                 {/* Tab bar */}
                 {allowedTabs.length > 1 && (
-                    <div className="flex border-b border-white/8">
+                    <div className="flex border-b border-white/[0.03]">
                         {allowedTabs.includes('upload') && (
                             <button onClick={() => setActiveTab('upload')} className={`flex-1 py-2.5 px-2 text-[10px] font-bold font-mono uppercase tracking-wider transition-colors ${activeTab === 'upload' ? 'bg-white/8 text-white border-b border-brand-primary' : 'text-gray-500 hover:text-gray-300 hover:bg-white/4'}`}>
                                 <Upload size={10} className="inline mr-1" />Upload
@@ -250,7 +250,7 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
                         <input
                             value={value}
                             onChange={(e) => onChange(e.target.value)}
-                            className="w-full bg-brand-surface/50 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white font-mono focus:outline-none focus:border-brand-primary/40 transition-colors placeholder-gray-700"
+                            className="w-full bg-brand-surface/50 border border-transparent rounded-xl px-3.5 py-2.5 text-[13px] text-white font-mono focus:outline-none focus:border-brand-primary/40 transition-colors placeholder-gray-700"
                             placeholder="https://..."
                         />
                     )}
@@ -258,7 +258,7 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
                     {activeTab === 'upload' && (
                         <div
                             onClick={() => fileInputRef.current?.click()}
-                            className="border-2 border-dashed border-white/10 hover:border-brand-primary/30 rounded-xl p-5 text-center cursor-pointer hover:bg-brand-primary/3 transition-all group"
+                            className="border-2 border-dashed border-white/[0.07] hover:border-brand-primary/30 rounded-xl p-5 text-center cursor-pointer hover:bg-brand-primary/3 transition-all group"
                         >
                             <Upload size={20} className="mx-auto text-gray-600 group-hover:text-brand-primary mb-2 transition-colors" />
                             <p className="text-[12px] text-gray-500 group-hover:text-gray-300 transition-colors">Clique para selecionar</p>
@@ -273,7 +273,7 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
                             </div>
                             {previewUrl ? (
                                 <div className="space-y-2">
-                                    <div className="relative aspect-video rounded-lg overflow-hidden border border-white/10 group">
+                                    <div className="relative aspect-video rounded-lg overflow-hidden border border-transparent group">
                                         <img key={previewUrl} src={previewUrl} className="w-full h-full object-cover" alt="AI Preview" />
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <a href={previewUrl} target="_blank" rel="noreferrer" className="text-white text-xs underline">Ver Original</a>
@@ -294,7 +294,7 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
                                         value={aiPrompt}
                                         onChange={(e) => setAiPrompt(e.target.value)}
                                         placeholder="Descreva a imagem... Ex: Estudantes aprendendo com tecnologia"
-                                        className="w-full bg-brand-surface/50 border border-white/8 rounded-xl px-3 py-2.5 text-[12px] text-white focus:border-brand-primary/40 outline-none resize-none transition-colors placeholder-gray-700"
+                                        className="w-full bg-brand-surface/50 border border-transparent rounded-xl px-3 py-2.5 text-[12px] text-white focus:border-brand-primary/40 outline-none resize-none transition-colors placeholder-gray-700"
                                         rows={3}
                                     />
                                     <button
@@ -340,7 +340,7 @@ const ImagePicker: React.FC<{ label: string; value: string; onChange: (val: stri
 const VisualSelector: React.FC<{ label: string; value: string; onChange: (val: any) => void; options: { value: string; label: string }[] }> = ({ label, value, onChange, options }) => (
     <div>
         <label className="block text-xs font-bold text-gray-400 uppercase mb-2">{label}</label>
-        <div className="flex gap-2 bg-brand-dark p-1 rounded border border-white/20">
+        <div className="flex gap-2 bg-brand-dark p-1 rounded border border-transparent">
             {options.map(opt => (
                 <button key={opt.value} onClick={() => onChange(opt.value)} className={`flex-1 py-2 text-xs font-bold rounded transition-colors ${value === opt.value ? 'bg-brand-primary text-brand-dark' : 'text-gray-400 hover:text-white'}`}>{opt.label}</button>
             ))}
@@ -390,8 +390,8 @@ const RichTextEditor: React.FC<{ value: string, onChange: (val: string) => void 
     }, [value]);
 
     return (
-        <div className="border border-white/20 rounded-lg overflow-hidden bg-brand-dark flex flex-col h-64">
-            <div className="flex flex-wrap items-center gap-1 p-2 bg-white/5 border-b border-white/10 shrink-0">
+        <div className="border border-transparent rounded-lg overflow-hidden bg-brand-dark flex flex-col h-64">
+            <div className="flex flex-wrap items-center gap-1 p-2 bg-white/5 border-b border-white/[0.03] shrink-0">
                 <button onMouseDown={(e) => { preventFocusLoss(e); execCmd('undo'); }} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Desfazer"><Undo size={14} /></button>
                 <button onMouseDown={(e) => { preventFocusLoss(e); execCmd('redo'); }} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Refazer"><Redo size={14} /></button>
                 <div className="w-px h-4 bg-white/10 mx-1"></div>
@@ -477,7 +477,7 @@ const AttachmentUploader: React.FC<{ attachments: Attachment[], onChange: (files
 
             <div className="space-y-2 mb-3">
                 {attachments.map(att => (
-                    <div key={att.id} className="flex items-center gap-2 bg-brand-dark p-2 rounded border border-white/10">
+                    <div key={att.id} className="flex items-center gap-2 bg-brand-dark p-2 rounded border border-transparent">
                         <Paperclip size={16} className="text-gray-400" />
                         <input
                             value={att.name}
@@ -491,7 +491,7 @@ const AttachmentUploader: React.FC<{ attachments: Attachment[], onChange: (files
                 ))}
             </div>
 
-            <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center cursor-pointer hover:bg-white/5 transition-colors" onClick={() => fileInputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}>
+            <div className="border-2 border-dashed border-white/[0.08] rounded-lg p-6 text-center cursor-pointer hover:bg-white/5 transition-colors" onClick={() => fileInputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}>
                 <input type="file" multiple ref={fileInputRef} className="hidden" onChange={(e) => handleFiles(e.target.files)} />
                 <Paperclip className="mx-auto text-gray-400 mb-2" />
                 <p className="text-xs text-gray-500">Clique ou arraste arquivos para anexar</p>
@@ -521,8 +521,8 @@ const LessonEditorModal: React.FC<{ isOpen: boolean, lesson: Lesson, isNew: bool
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-brand-card w-full max-w-4xl rounded-xl shadow-2xl border border-white/20 flex flex-col max-h-[90vh]">
-                <div className="flex justify-between items-center p-6 border-b border-white/20">
+            <div className="bg-brand-card w-full max-w-4xl rounded-xl shadow-2xl border border-transparent flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center p-6 border-b border-white/[0.03]">
                     <h3 className="text-xl font-bold text-white">
                         {step === 1 ? 'Escolha o Tipo de Aula' : (isNew ? 'Nova Aula' : 'Editar Aula')}
                     </h3>
@@ -531,12 +531,12 @@ const LessonEditorModal: React.FC<{ isOpen: boolean, lesson: Lesson, isNew: bool
 
                 {step === 1 ? (
                     <div className="p-12 grid grid-cols-2 gap-8">
-                        <button onClick={() => handleTypeSelect('video')} className="bg-brand-dark hover:bg-white/5 border border-white/10 hover:border-brand-primary p-8 rounded-xl flex flex-col items-center gap-4 transition-all group">
+                        <button onClick={() => handleTypeSelect('video')} className="bg-brand-dark hover:bg-white/5 border border-transparent hover:border-brand-primary p-8 rounded-xl flex flex-col items-center gap-4 transition-all group">
                             <div className="p-4 bg-blue-500/20 rounded-full text-blue-400 group-hover:scale-110 transition-transform"><Video size={48} /></div>
                             <h3 className="text-xl font-bold text-white">Vídeo Aula</h3>
                             <p className="text-gray-400 text-center text-sm">Aula baseada em vídeo (YouTube, Vimeo ou Embed) com descrição e materiais de apoio.</p>
                         </button>
-                        <button onClick={() => handleTypeSelect('text')} className="bg-brand-dark hover:bg-white/5 border border-white/10 hover:border-brand-primary p-8 rounded-xl flex flex-col items-center gap-4 transition-all group">
+                        <button onClick={() => handleTypeSelect('text')} className="bg-brand-dark hover:bg-white/5 border border-transparent hover:border-brand-primary p-8 rounded-xl flex flex-col items-center gap-4 transition-all group">
                             <div className="p-4 bg-green-500/20 rounded-full text-green-400 group-hover:scale-110 transition-transform"><FileText size={48} /></div>
                             <h3 className="text-xl font-bold text-white">Texto / Artigo</h3>
                             <p className="text-gray-400 text-center text-sm">Conteúdo rico em texto, com imagens, formatação e materiais complementares.</p>
@@ -545,7 +545,7 @@ const LessonEditorModal: React.FC<{ isOpen: boolean, lesson: Lesson, isNew: bool
                 ) : (
                     <>
                         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                            <input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-4 py-3 text-white text-lg font-bold" placeholder="Título da Aula" />
+                            <input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded px-4 py-3 text-white text-lg font-bold" placeholder="Título da Aula" />
 
                             {formData.type === 'video' && (
                                 <div className="space-y-6">
@@ -558,7 +558,7 @@ const LessonEditorModal: React.FC<{ isOpen: boolean, lesson: Lesson, isNew: bool
                                         />
                                         <div>
                                             <label className="block text-xs font-bold text-gray-400 uppercase mb-2">URL ou Código Embed</label>
-                                            <input value={formData.videoUrl || ''} onChange={e => setFormData({ ...formData, videoUrl: e.target.value })} className="w-full bg-black border border-white/10 rounded px-4 py-3 text-white font-mono text-sm focus:border-brand-primary outline-none" placeholder="https://..." />
+                                            <input value={formData.videoUrl || ''} onChange={e => setFormData({ ...formData, videoUrl: e.target.value })} className="w-full bg-black border border-transparent rounded px-4 py-3 text-white font-mono text-sm focus:border-brand-primary outline-none" placeholder="https://..." />
                                         </div>
                                     </div>
 
@@ -578,7 +578,7 @@ const LessonEditorModal: React.FC<{ isOpen: boolean, lesson: Lesson, isNew: bool
 
                             <AttachmentUploader attachments={formData.attachments || []} onChange={files => setFormData({ ...formData, attachments: files })} />
                         </div>
-                        <div className="p-6 border-t border-white/20 flex justify-end gap-3">
+                        <div className="p-6 border-t border-white/[0.03] flex justify-end gap-3">
                             {isNew && <button onClick={() => setStep(1)} className="px-6 py-2 text-gray-400 font-bold text-sm hover:text-white mr-auto">Voltar</button>}
                             <button onClick={onClose} className="px-6 py-2 text-gray-400 font-bold text-sm">Cancelar</button>
                             <button onClick={() => { onSave(formData); onClose(); }} className="px-6 py-2 bg-brand-primary text-brand-dark font-bold text-sm rounded">Salvar</button>
@@ -640,7 +640,7 @@ function SortableModuleItem({ module, mIdx, onUpdateModule, onDeleteModule, less
                 </SortableContext>
                 <button
                     onClick={() => onAddLesson(mIdx)}
-                    className="w-full py-3 mt-2 border border-dashed border-white/10 hover:border-brand-primary/50 hover:bg-brand-primary/5 rounded-xl text-xs text-gray-400 hover:text-brand-primary font-mono uppercase tracking-wider flex justify-center items-center gap-2 transition-all"
+                    className="w-full py-3 mt-2 border border-dashed border-white/[0.07] hover:border-brand-primary/50 hover:bg-brand-primary/5 rounded-xl text-xs text-gray-400 hover:text-brand-primary font-mono uppercase tracking-wider flex justify-center items-center gap-2 transition-all"
                 >
                     <Plus size={14} /> Adicionar aula
                 </button>
@@ -703,7 +703,7 @@ const ConfirmDialog: React.FC<{
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-brand-card w-full max-w-md rounded-xl shadow-2xl border border-white/20 p-6 animate-in fade-in zoom-in duration-200">
+            <div className="bg-brand-card w-full max-w-md rounded-xl shadow-2xl border border-transparent p-6 animate-in fade-in zoom-in duration-200">
                 <div className="flex items-center gap-3 text-red-500 mb-4">
                     <AlertTriangle size={24} />
                     <h3 className="text-xl font-bold text-white">{title}</h3>
@@ -874,7 +874,7 @@ const CourseContentEditor: React.FC<{ course: Course, isSaving?: boolean, onBack
                     <input
                         value={formData.title}
                         onChange={e => setFormData({ ...formData, title: e.target.value })}
-                        className="w-full bg-transparent border-0 border-b border-white/10 focus:border-brand-primary/60 focus:outline-none px-0 py-3 text-white text-2xl md:text-3xl font-bold tracking-tight placeholder:text-gray-600 transition-colors"
+                        className="w-full bg-transparent border-0 border-b border-white/[0.03] focus:border-brand-primary/60 focus:outline-none px-0 py-3 text-white text-2xl md:text-3xl font-bold tracking-tight placeholder:text-gray-600 transition-colors"
                         placeholder="Nome do curso..."
                     />
 
@@ -884,7 +884,7 @@ const CourseContentEditor: React.FC<{ course: Course, isSaving?: boolean, onBack
                         <input
                             value={formData.author || DEFAULT_AUTHOR}
                             onChange={e => setFormData({ ...formData, author: e.target.value })}
-                            className="w-full bg-brand-surface/50 border border-white/8 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-gray-600 focus:border-brand-primary/60 focus:outline-none transition-colors"
+                            className="w-full bg-brand-surface/50 border border-transparent rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-gray-600 focus:border-brand-primary/60 focus:outline-none transition-colors"
                             placeholder={DEFAULT_AUTHOR}
                         />
                     </div>
@@ -930,7 +930,7 @@ const CourseContentEditor: React.FC<{ course: Course, isSaving?: boolean, onBack
                     </DndContext>
                     <button
                         onClick={addModule}
-                        className="w-full py-5 border-2 border-dashed border-white/10 rounded-2xl text-gray-400 hover:text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all flex flex-col items-center gap-2 mt-4"
+                        className="w-full py-5 border-2 border-dashed border-white/[0.07] rounded-2xl text-gray-400 hover:text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all flex flex-col items-center gap-2 mt-4"
                     >
                         <Plus size={22} />
                         <span className="text-[11px] font-mono uppercase tracking-wider font-bold">Adicionar novo módulo</span>
@@ -964,33 +964,38 @@ const PremiumCourseCard: React.FC<{ course: Course, onClick: () => void, index?:
     const cover = hqImage(course.coverImage || pickImage(COURSE_COVERS, course.id + course.title));
     return (
         <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.5, delay: index * 0.055, ease: [0.32, 0.72, 0, 1] }}
             onClick={onClick}
             className="course-card-premium"
         >
-            <div className="cover">
-                <img src={cover} alt={course.title} loading="lazy" decoding="async" />
-                <div className="cover-badge">{course.modules.length} módulos</div>
-            </div>
-            <div className="body">
-                <h3>{course.title}</h3>
-                <div className="meta">
-                    <span>{totalLessons} aulas</span>
-                    <span className="meta-dot" />
-                    <span>{course.author || DEFAULT_AUTHOR}</span>
+            {/* Inner core — double-bezel */}
+            <div className="card-inner">
+                <div className="cover">
+                    <img src={cover} alt={course.title} loading="lazy" decoding="async" />
+                    <div className="cover-badge">{course.modules.length} módulos</div>
                 </div>
-                {progress > 0 && (
-                    <div className="progress">
-                        <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-brand-primary">{progress}% concluído</span>
-                        </div>
-                        <div className="progress-track">
-                            <div className="progress-fill" style={{ width: `${progress}%` }} />
-                        </div>
+                <div className="body">
+                    <h3>{course.title}</h3>
+                    <div className="meta">
+                        <span>{totalLessons} aulas</span>
+                        <span className="meta-dot" />
+                        <span>{course.author || DEFAULT_AUTHOR}</span>
                     </div>
-                )}
+                    {progress > 0 && (
+                        <div className="progress">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[9.5px] font-mono uppercase tracking-wider" style={{ color: 'var(--green)' }}>
+                                    {progress}% concluído
+                                </span>
+                            </div>
+                            <div className="progress-track">
+                                <div className="progress-fill" style={{ width: `${progress}%` }} />
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </motion.div>
     );
@@ -1003,7 +1008,11 @@ export const HomeView: React.FC<{ courses: Course[], onCourseClick: (id: string)
     const filteredCourses = q ? courses.filter((c: Course) =>
         c.title.toLowerCase().includes(q) ||
         (c.description || '').toLowerCase().includes(q) ||
-        (c.author || '').toLowerCase().includes(q)
+        (c.author || '').toLowerCase().includes(q) ||
+        c.modules.some(m =>
+            m.title.toLowerCase().includes(q) ||
+            m.lessons.some(l => l.title.toLowerCase().includes(q))
+        )
     ) : courses;
     const totalLessons = courses.reduce((acc, c) => acc + c.modules.reduce((a, m) => a + m.lessons.length, 0), 0);
 
@@ -1044,35 +1053,47 @@ export const HomeView: React.FC<{ courses: Course[], onCourseClick: (id: string)
     return (
         <div className="pb-24">
             {blocks.length === 0 && (
-                <div className="px-4 lg:px-8 max-w-7xl mx-auto pt-8">
-                    {/* Premium hero strip */}
+                <div className="px-4 lg:px-8 max-w-7xl mx-auto pt-7">
+                    {/* Hero — double-bezel architecture */}
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                        className="hero-premium mb-10"
+                        transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
+                        className="hero-premium mb-8"
                     >
-                        <div className="eyebrow mb-4">Área de Membros Premium</div>
-                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 max-w-3xl leading-[1.1]">
-                            <span className="text-white">Domine o </span>
-                            <span className="text-gradient-premium">WhatsApp Business</span>
-                            <span className="text-white"> como um especialista.</span>
-                        </h1>
-                        <p className="text-gray-300 text-base md:text-lg max-w-2xl mb-6 leading-relaxed">
-                            Acesso exclusivo aos cursos, automações e playbooks do ecossistema Conversapp. Conteúdo liberado para acelerar suas conversões.
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                            <div className="stat-chip">
-                                <div className="dot" />
-                                <span className="font-mono uppercase tracking-wider">{courses.length} cursos ativos</span>
+                        <div className="hero-premium-inner">
+                            {/* Eyebrow pill */}
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border mb-5"
+                                style={{ background: 'rgba(37,211,102,0.07)', borderColor: 'var(--green-border)' }}>
+                                <span className="w-1.5 h-1.5 rounded-full animate-pulse"
+                                    style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }} />
+                                <span className="text-[9.5px] font-mono uppercase tracking-[0.20em]"
+                                    style={{ color: 'var(--green)' }}>
+                                    Área de Membros
+                                </span>
                             </div>
-                            <div className="stat-chip">
-                                <div className="dot" />
-                                <span className="font-mono uppercase tracking-wider">{totalLessons} aulas</span>
-                            </div>
-                            <div className="stat-chip">
-                                <div className="dot" />
-                                <span className="font-mono uppercase tracking-wider">Acesso vitalício</span>
+
+                            <h1 className="text-3xl md:text-[2.75rem] font-extrabold tracking-[-0.03em] mb-3.5 max-w-3xl leading-[1.08]">
+                                <span className="text-white">Domine o </span>
+                                <span className="text-gradient-premium">WhatsApp Business</span>
+                                <span className="text-white"> como um especialista.</span>
+                            </h1>
+                            <p className="text-[15px] text-gray-400 max-w-xl mb-6 leading-relaxed">
+                                Acesso exclusivo a cursos, automações e playbooks. Conteúdo para acelerar suas conversões.
+                            </p>
+                            <div className="flex flex-wrap gap-2.5">
+                                <div className="stat-chip">
+                                    <div className="dot" />
+                                    <span>{courses.length} cursos</span>
+                                </div>
+                                <div className="stat-chip">
+                                    <div className="dot" />
+                                    <span>{totalLessons} aulas</span>
+                                </div>
+                                <div className="stat-chip">
+                                    <div className="dot" />
+                                    <span>Acesso vitalício</span>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
@@ -1081,17 +1102,19 @@ export const HomeView: React.FC<{ courses: Course[], onCourseClick: (id: string)
                     <div className="section-heading">
                         <div>
                             <div className="eyebrow mb-2">Biblioteca</div>
-                            <h2 className="tracking-tight">Cursos disponíveis para você</h2>
+                            <h2 className="tracking-tight">Seus cursos</h2>
                         </div>
-                        <div className="eyebrow-muted hidden md:block">{filteredCourses.length} {filteredCourses.length === 1 ? 'curso' : 'cursos'}</div>
+                        <div className="eyebrow-muted hidden md:block">
+                            {filteredCourses.length} {filteredCourses.length === 1 ? 'curso' : 'cursos'}
+                        </div>
                     </div>
                     {filteredCourses.length === 0 ? (
                         <div className="panel-premium p-12 text-center">
-                            <BookOpen className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-                            <p className="text-gray-400">Nenhum curso encontrado {searchQuery && `para "${searchQuery}"`}.</p>
+                            <BookOpen className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+                            <p className="text-gray-400 font-medium">Nenhum curso encontrado.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {filteredCourses.map((course, i) => (
                                 <PremiumCourseCard key={course.id} course={course} index={i} onClick={() => onCourseClick(course.id)} />
                             ))}
@@ -1168,7 +1191,7 @@ export const CourseDetailView: React.FC<{ course: Course, onBack: () => void, on
 
                 <button
                     onClick={onBack}
-                    className="absolute top-5 left-5 lg:left-8 flex items-center gap-2 px-3.5 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white text-sm font-semibold hover:bg-black/70 hover:border-brand-primary/40 transition-colors"
+                    className="absolute top-5 left-5 lg:left-8 flex items-center gap-2 px-3.5 h-9 rounded-full bg-black/50 backdrop-blur-md border border-transparent text-white text-sm font-semibold hover:bg-black/70 hover:border-brand-primary/40 transition-colors"
                 >
                     <ArrowLeft size={15} /> Voltar
                 </button>
@@ -1187,7 +1210,7 @@ export const CourseDetailView: React.FC<{ course: Course, onBack: () => void, on
                         <img
                             src={coverImage}
                             alt={course.title}
-                            className="relative w-32 h-32 md:w-40 md:h-40 object-cover rounded-2xl border border-white/10 shadow-premium-lg"
+                            className="relative w-32 h-32 md:w-40 md:h-40 object-cover rounded-2xl border border-transparent shadow-premium-lg"
                         />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1311,12 +1334,12 @@ const CommentsSection: React.FC<{ lessonId: string, user: User | null }> = ({ le
             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><MessageSquare size={20} /> Comentários ({comments.length})</h3>
 
             <div className="flex gap-4 mb-8">
-                <img src={user.avatar} className="w-10 h-10 rounded-full border border-white/10" />
+                <img src={user.avatar} className="w-10 h-10 rounded-full border border-transparent" />
                 <div className="flex-1">
                     <textarea
                         value={newComment}
                         onChange={e => setNewComment(e.target.value)}
-                        className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white focus:border-brand-primary outline-none min-h-[80px]"
+                        className="w-full bg-brand-dark border border-transparent rounded-lg p-3 text-white focus:border-brand-primary outline-none min-h-[80px]"
                         placeholder="Deixe seu comentário ou dúvida..."
                     />
                     <div className="flex justify-end mt-2">
@@ -1443,7 +1466,7 @@ export const PlayerView: React.FC<{ course: Course, lessonId: string, onBack: ()
 
                             {/* Attachments */}
                             {currentLesson.attachments && currentLesson.attachments.length > 0 && (
-                                <div className="bg-brand-dark border border-white/10 rounded-xl p-6 mb-8">
+                                <div className="bg-brand-dark border border-transparent rounded-xl p-6 mb-8">
                                     <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Paperclip size={18} /> Materiais Complementares</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {currentLesson.attachments.map(att => (
@@ -1607,7 +1630,7 @@ const PremiumField: React.FC<{
                 onKeyDown={e => e.key === 'Enter' && onSubmit?.()}
                 placeholder={placeholder}
                 autoComplete={autoComplete}
-                className="w-full h-12 bg-brand-inset border border-white/8 rounded-xl pl-10 pr-10 text-white text-sm placeholder:text-gray-600 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                className="w-full h-12 bg-brand-inset border border-transparent rounded-xl pl-10 pr-10 text-white text-sm placeholder:text-gray-600 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
             />
             {action && <div className="absolute right-3 top-1/2 -translate-y-1/2">{action}</div>}
         </div>
@@ -1676,33 +1699,52 @@ export const LoginView: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     const [showPassword, setShowPassword] = useState(false);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-brand-dark relative overflow-hidden px-4 py-12">
+        <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden px-4 py-12"
+            style={{ background: 'var(--bg-0)' }}>
             {/* Background grid */}
-            <div className="absolute inset-0 bg-[image:linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+            <div className="absolute inset-0 pointer-events-none opacity-60"
+                style={{
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)',
+                    backgroundSize: '44px 44px'
+                }} />
             {/* Radial green glow */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,211,102,0.14)_0%,transparent_60%)] pointer-events-none" />
+            <div className="absolute inset-0 pointer-events-none"
+                style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -5%, rgba(37,211,102,0.16) 0%, transparent 65%)' }} />
+            {/* Bottom subtle glow */}
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none"
+                style={{ background: 'radial-gradient(ellipse, rgba(37,211,102,0.05) 0%, transparent 70%)', filter: 'blur(40px)' }} />
 
             <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="relative z-10 w-full max-w-[420px]"
+                initial={{ opacity: 0, y: 28, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.55, ease: [0.32, 0.72, 0, 1] }}
+                className="relative z-10 w-full max-w-[400px]"
             >
-                {/* Glassmorphism card */}
-                <div
-                    className="bg-brand-card/60 backdrop-blur-2xl border border-white/8 rounded-3xl shadow-[0_40px_80px_-20px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] p-8"
-                    style={{ boxShadow: '0 40px 80px -20px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05), 0 0 60px -20px rgba(37,211,102,0.08)' }}
-                >
+                {/* Outer bezel */}
+                <div className="p-[3px] rounded-[28px] border"
+                    style={{
+                        background: 'var(--bg-2)',
+                        borderColor: 'var(--line-1)',
+                        boxShadow: 'var(--shadow-xl), 0 0 80px -20px rgba(37,211,102,0.12)'
+                    }}>
+                    {/* Inner core */}
+                    <div className="rounded-[25px] p-7 overflow-hidden"
+                        style={{
+                            background: 'linear-gradient(160deg, var(--bg-3) 0%, var(--bg-2) 100%)',
+                            boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.06)'
+                        }}>
+
                     {/* Brand */}
-                    <div className="text-center mb-8">
-                        <div className="relative inline-block mb-5">
-                            <div className="absolute inset-0 bg-brand-primary/25 blur-2xl rounded-full scale-150" />
-                            <img src="https://i.imgur.com/FIJkEbs.png" className="relative h-20 mx-auto" alt="Conversapp Academy" />
+                    <div className="text-center mb-7">
+                        <div className="relative inline-block mb-4">
+                            <div className="absolute inset-0 blur-2xl rounded-full scale-150 opacity-30"
+                                style={{ background: 'var(--green)' }} />
+                            <img src="https://i.imgur.com/FIJkEbs.png" className="relative h-16 mx-auto" alt="Conversapp Academy" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white tracking-tight">
+                        <h1 className="text-[22px] font-extrabold text-white tracking-tight leading-tight">
                             {isForgot ? 'Recuperar acesso' : (isLogin ? 'Bem-vindo de volta' : 'Criar sua conta')}
                         </h1>
-                        <p className="text-gray-400 text-sm mt-1.5 leading-relaxed">
+                        <p className="text-[13px] mt-1.5 leading-relaxed" style={{ color: 'var(--t-2)' }}>
                             {isForgot
                                 ? 'Enviaremos um link de redefinição para seu email'
                                 : isLogin
@@ -1713,19 +1755,21 @@ export const LoginView: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 
                     {/* Tab switcher */}
                     {!isForgot && (
-                        <div className="flex bg-brand-inset/80 p-1 rounded-xl mb-7 border border-white/5">
-                            <button
-                                onClick={() => { setIsLogin(true); setError(''); setSuccessMsg(''); }}
-                                className={`flex-1 py-2.5 text-[12px] font-mono uppercase tracking-wider rounded-lg transition-all ${isLogin ? 'bg-gradient-premium text-brand-dark font-bold shadow-neon' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                Entrar
-                            </button>
-                            <button
-                                onClick={() => { setIsLogin(false); setError(''); setSuccessMsg(''); }}
-                                className={`flex-1 py-2.5 text-[12px] font-mono uppercase tracking-wider rounded-lg transition-all ${!isLogin ? 'bg-gradient-premium text-brand-dark font-bold shadow-neon' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                Cadastrar
-                            </button>
+                        <div className="flex p-1 rounded-[14px] mb-6 border"
+                            style={{ background: 'var(--bg-6)', borderColor: 'var(--line-0)' }}>
+                            {[{ key: true, label: 'Entrar' }, { key: false, label: 'Cadastrar' }].map(({ key, label }) => (
+                                <button key={String(key)}
+                                    onClick={() => { setIsLogin(key); setError(''); setSuccessMsg(''); }}
+                                    className="flex-1 py-2 text-[11px] font-mono uppercase tracking-[0.16em] rounded-[10px] transition-all duration-200"
+                                    style={isLogin === key ? {
+                                        background: 'var(--g-primary)',
+                                        color: '#041008',
+                                        fontWeight: 700,
+                                        boxShadow: 'var(--glow-sm)'
+                                    } : { color: 'var(--t-3)' }}>
+                                    {label}
+                                </button>
+                            ))}
                         </div>
                     )}
 
@@ -1821,11 +1865,17 @@ export const LoginView: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                     </div>
 
                     {/* Footer trust signal */}
-                    <div className="mt-7 pt-5 border-t border-white/5 flex items-center justify-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-brand-primary shadow-[0_0_8px_#25D366]" />
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500">Área exclusiva · Conversapp Academy</span>
+                    <div className="mt-6 pt-5 flex items-center justify-center gap-2"
+                        style={{ borderTop: '1px solid var(--line-0)' }}>
+                        <div className="w-1.5 h-1.5 rounded-full animate-pulse"
+                            style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }} />
+                        <span className="text-[9.5px] font-mono uppercase tracking-widest"
+                            style={{ color: 'var(--t-4)' }}>
+                            Área exclusiva · Conversapp Academy
+                        </span>
                     </div>
-                </div>
+                    </div>{/* /inner core */}
+                </div>{/* /outer bezel */}
             </motion.div>
         </div>
     );
@@ -1839,7 +1889,7 @@ const SortablePageBlock = ({ block, openBlockId, setOpenBlockId, removeBlock, up
     const isBanner = block.type === 'hero_banner';
 
     return (
-        <div ref={setNodeRef} style={style} className={`rounded-2xl overflow-hidden border transition-all duration-200 ${isOpen ? 'border-brand-primary/40 shadow-neon' : 'border-white/8 hover:border-white/15'} bg-brand-card`}>
+        <div ref={setNodeRef} style={style} className={`rounded-2xl overflow-hidden border transition-all duration-200 ${isOpen ? 'border-brand-primary/40 shadow-neon' : 'border-transparent'} bg-brand-card`}>
             {/* Block Header */}
             <div className={`flex items-center gap-3 px-4 py-3 ${isOpen ? 'bg-brand-primary/5 border-b border-brand-primary/15' : 'bg-white/3'}`}>
                 <button className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing p-1 transition-colors shrink-0" {...attributes} {...listeners} title="Arrastar">
@@ -1858,7 +1908,7 @@ const SortablePageBlock = ({ block, openBlockId, setOpenBlockId, removeBlock, up
                 <div className="flex items-center gap-1.5 shrink-0">
                     <button
                         onClick={() => setOpenBlockId(isOpen ? null : block.id)}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-all ${isOpen ? 'bg-brand-primary/15 text-brand-primary border border-brand-primary/25' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/8'}`}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-all ${isOpen ? 'bg-brand-primary/15 text-brand-primary border border-brand-primary/25' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/[0.05]'}`}
                     >
                         {isOpen ? 'Fechar' : 'Editar'}
                     </button>
@@ -1887,14 +1937,14 @@ const SortablePageBlock = ({ block, openBlockId, setOpenBlockId, removeBlock, up
                                 <>
                                     <div>
                                         <label className="block text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-1.5">Título</label>
-                                        <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Título do Banner" />
+                                        <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-surface/60 border border-transparent rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Título do Banner" />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-1.5">Descrição</label>
-                                        <textarea value={block.content.description} onChange={e => updateBlock(block.id, { description: e.target.value })} className="w-full bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white h-20 resize-none focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Descrição do Banner" />
+                                        <textarea value={block.content.description} onChange={e => updateBlock(block.id, { description: e.target.value })} className="w-full bg-brand-surface/60 border border-transparent rounded-xl px-3.5 py-2.5 text-[13px] text-white h-20 resize-none focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Descrição do Banner" />
                                     </div>
                                     <ImagePicker label="Imagem de Fundo" value={block.content.imageUrl || ''} onChange={val => updateBlock(block.id, { imageUrl: val })} resolutionHint="1920×1080px · proporção 16:9 · JPG/PNG/WebP" allowedTabs={['upload', 'link', 'ai']} />
-                                    <div className="border-t border-white/8 pt-4 space-y-3">
+                                    <div className="border-t border-white/[0.03] pt-4 space-y-3">
                                         <div className="flex items-center justify-between">
                                             <span className="text-[13px] font-semibold text-white">Botão de Ação (CTA)</span>
                                             <label className="relative inline-flex items-center cursor-pointer">
@@ -1904,8 +1954,8 @@ const SortablePageBlock = ({ block, openBlockId, setOpenBlockId, removeBlock, up
                                         </div>
                                         {block.content.showCta && (
                                             <div className="grid grid-cols-2 gap-3">
-                                                <input value={block.content.ctaText} onChange={e => updateBlock(block.id, { ctaText: e.target.value })} className="bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Texto do botão" />
-                                                <input value={block.content.ctaLink || ''} onChange={e => updateBlock(block.id, { ctaLink: e.target.value })} className="bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white font-mono focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="https://..." />
+                                                <input value={block.content.ctaText} onChange={e => updateBlock(block.id, { ctaText: e.target.value })} className="bg-brand-surface/60 border border-transparent rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="Texto do botão" />
+                                                <input value={block.content.ctaLink || ''} onChange={e => updateBlock(block.id, { ctaLink: e.target.value })} className="bg-brand-surface/60 border border-transparent rounded-xl px-3.5 py-2.5 text-[13px] text-white font-mono focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="https://..." />
                                             </div>
                                         )}
                                     </div>
@@ -1916,7 +1966,7 @@ const SortablePageBlock = ({ block, openBlockId, setOpenBlockId, removeBlock, up
                                 <>
                                     <div>
                                         <label className="block text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-1.5">Título da Seção</label>
-                                        <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-surface/60 border border-white/8 rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="ex: Cursos em Destaque" />
+                                        <input value={block.content.title} onChange={e => updateBlock(block.id, { title: e.target.value })} className="w-full bg-brand-surface/60 border border-transparent rounded-xl px-3.5 py-2.5 text-[13px] text-white focus:outline-none focus:border-brand-primary/40 transition-colors" placeholder="ex: Cursos em Destaque" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <VisualSelector
@@ -1933,7 +1983,7 @@ const SortablePageBlock = ({ block, openBlockId, setOpenBlockId, removeBlock, up
                                         />
                                     </div>
                                     {block.content.sourceType === 'specific_courses' && (
-                                        <div className="border-t border-white/8 pt-4">
+                                        <div className="border-t border-white/[0.03] pt-4">
                                             <CourseSelector
                                                 selectedIds={block.content.selectedIds || []}
                                                 onChange={(ids) => updateBlock(block.id, { selectedIds: ids })}
@@ -2119,7 +2169,7 @@ const PageBuilder: React.FC = () => {
                 <div className="flex-1 overflow-y-auto scrollbar-subtle" style={{background:'#050707'}}>
                     {blocks.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
-                            <div className="w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mb-2">
+                            <div className="w-16 h-16 rounded-2xl bg-white/4 border border-transparent flex items-center justify-center mb-2">
                                 <LayoutIcon size={28} className="text-gray-600" />
                             </div>
                             <div>
@@ -2144,7 +2194,7 @@ const PageBuilder: React.FC = () => {
                                         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-wider backdrop-blur-md ${
                                             openBlockId === block.id
                                                 ? 'bg-brand-primary text-brand-dark shadow-neon'
-                                                : 'bg-black/60 text-white border border-white/20'
+                                                : 'bg-black/60 text-white border border-transparent'
                                         }`}>
                                             <Pencil size={8} />
                                             {openBlockId === block.id ? 'Editando' : 'Editar'}
@@ -2223,7 +2273,7 @@ const PageBuilder: React.FC = () => {
                     </div>
 
                     {/* Tab switcher: Layout / Cursos */}
-                    <div className="flex bg-brand-dark/80 p-1 rounded-xl border border-white/6 gap-1">
+                    <div className="flex bg-brand-dark/80 p-1 rounded-xl border border-white/[0.04] gap-1">
                         <button
                             onClick={() => setOpenBlockId(null)}
                             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold font-mono uppercase tracking-wider transition-all ${
@@ -2257,7 +2307,7 @@ const PageBuilder: React.FC = () => {
                         <div className="px-4 pt-4 pb-2 space-y-2">
                             {blocks.length === 0 && (
                                 <div className="text-center py-12">
-                                    <div className="w-12 h-12 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mx-auto mb-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-white/4 border border-transparent flex items-center justify-center mx-auto mb-3">
                                         <LayoutIcon size={20} className="text-gray-700" />
                                     </div>
                                     <p className="text-[13px] text-gray-500 font-semibold">Nenhuma seção ainda</p>
@@ -2291,7 +2341,7 @@ const PageBuilder: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => addBlock('hero_banner')}
-                                className="group flex items-center gap-3 p-3 rounded-xl bg-brand-surface/40 hover:bg-blue-500/8 border border-white/6 hover:border-blue-500/25 transition-all text-left"
+                                className="group flex items-center gap-3 p-3 rounded-xl bg-brand-surface/40 hover:bg-blue-500/8 border border-white/[0.04] hover:border-blue-500/25 transition-all text-left"
                             >
                                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/18 flex items-center justify-center shrink-0 transition-colors">
                                     <ImageIcon size={14} className="text-blue-400" />
@@ -2303,7 +2353,7 @@ const PageBuilder: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => addBlock('content_list')}
-                                className="group flex items-center gap-3 p-3 rounded-xl bg-brand-surface/40 hover:bg-brand-primary/8 border border-white/6 hover:border-brand-primary/25 transition-all text-left"
+                                className="group flex items-center gap-3 p-3 rounded-xl bg-brand-surface/40 hover:bg-brand-primary/8 border border-white/[0.04] hover:border-brand-primary/25 transition-all text-left"
                             >
                                 <div className="w-8 h-8 rounded-lg bg-brand-primary/10 group-hover:bg-brand-primary/18 flex items-center justify-center shrink-0 transition-colors">
                                     <ListIcon size={14} className="text-brand-primary" />
@@ -2438,7 +2488,7 @@ export const Builder: React.FC = () => {
                                 <div className="p-4 flex flex-col md:flex-row items-start md:items-center gap-4">
                                     <div className="relative shrink-0">
                                         <div className="absolute -inset-1 bg-gradient-premium opacity-0 group-hover:opacity-50 blur-lg rounded-xl transition-opacity" />
-                                        <img src={c.coverImage} alt={c.title} className="relative w-20 h-20 rounded-xl object-cover border border-white/10" />
+                                        <img src={c.coverImage} alt={c.title} className="relative w-20 h-20 rounded-xl object-cover border border-transparent" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-bold text-white text-[16px] tracking-tight truncate">{c.title}</h3>
@@ -2841,7 +2891,7 @@ export const UserPanel: React.FC = () => {
                         value={filter}
                         onChange={e => setFilter(e.target.value)}
                         placeholder="Buscar por nome, email ou telefone..."
-                        className="w-full bg-brand-card border border-white/10 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/10 outline-none transition"
+                        className="w-full bg-brand-card border border-transparent rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/10 outline-none transition"
                     />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -2865,7 +2915,7 @@ export const UserPanel: React.FC = () => {
             </div>
 
             {/* Table card */}
-            <div className="bg-brand-card rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40">
+            <div className="bg-brand-card rounded-2xl overflow-hidden border border-transparent shadow-2xl shadow-black/40">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-white/[0.02] text-gray-500 font-semibold uppercase text-[10px] tracking-[0.1em]">
@@ -2896,7 +2946,7 @@ export const UserPanel: React.FC = () => {
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="relative shrink-0">
-                                                    <img src={u.avatar} className="w-10 h-10 rounded-full object-cover border border-white/10" alt="" />
+                                                    <img src={u.avatar} className="w-10 h-10 rounded-full object-cover border border-transparent" alt="" />
                                                     <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-brand-card ${inactive ? 'bg-gray-500' : 'bg-emerald-400'}`} />
                                                 </div>
                                                 <div className="min-w-0">
@@ -2966,7 +3016,7 @@ export const UserPanel: React.FC = () => {
             {/* Add user modal */}
             {isAddModalOpen && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setIsAddModalOpen(false); setAddUserError(null); }}>
-                    <div className="bg-brand-card w-full max-w-md rounded-2xl border border-white/10 p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-brand-card w-full max-w-md rounded-2xl border border-transparent p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-start justify-between">
                             <div>
                                 <h3 className="text-xl font-bold text-white">Adicionar usuário</h3>
@@ -3009,10 +3059,10 @@ export const UserPanel: React.FC = () => {
             {/* Edit user modal */}
             {editingUser && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
-                    <div className="bg-brand-card w-full max-w-md rounded-2xl border border-white/10 p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-brand-card w-full max-w-md rounded-2xl border border-transparent p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
-                                <img src={editingUser.avatar} className="w-11 h-11 rounded-full object-cover border border-white/10" alt="" />
+                                <img src={editingUser.avatar} className="w-11 h-11 rounded-full object-cover border border-transparent" alt="" />
                                 <div>
                                     <h3 className="text-lg font-bold text-white leading-tight">Editar usuário</h3>
                                     <p className="text-xs text-gray-500 truncate max-w-[200px]">{editingUser.email}</p>
@@ -3036,7 +3086,7 @@ export const UserPanel: React.FC = () => {
                                 ]}
                             />
 
-                            <div className="flex items-center justify-between bg-brand-dark/60 border border-white/10 rounded-xl px-4 py-3">
+                            <div className="flex items-center justify-between bg-brand-dark/60 border border-transparent rounded-xl px-4 py-3">
                                 <div>
                                     <div className="text-sm font-semibold text-white">Acesso ativo</div>
                                     <div className="text-xs text-gray-500">Usuário suspenso não consegue fazer login.</div>
@@ -3112,7 +3162,7 @@ export const UserPanel: React.FC = () => {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <div className="bg-brand-dark border border-white/10 rounded-lg px-3 py-2">
+                            <div className="bg-brand-dark border border-transparent rounded-lg px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-gray-500">Email</div>
                                 <div className="text-sm text-white font-mono break-all">{createdUserCredentials.email}</div>
                             </div>
@@ -3181,7 +3231,7 @@ const FieldInput: React.FC<{
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={placeholder}
-            className="mt-1 w-full bg-brand-dark/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/10 outline-none transition"
+            className="mt-1 w-full bg-brand-dark/60 border border-transparent rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/10 outline-none transition"
         />
     </label>
 );
@@ -3224,7 +3274,7 @@ export const UserProfile: React.FC<{ user: User, onUpdate: (u: User) => void }> 
         <div className="p-8 max-w-3xl mx-auto pb-20">
             <h1 className="text-3xl font-bold text-white mb-8">Meu Perfil</h1>
 
-            <div className="bg-brand-card border border-white/10 rounded-xl p-8 space-y-8">
+            <div className="bg-brand-card border border-transparent rounded-xl p-8 space-y-8">
                 <div className="flex flex-col md:flex-row items-center gap-12">
                     <div className="relative group shrink-0">
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
@@ -3239,17 +3289,17 @@ export const UserProfile: React.FC<{ user: User, onUpdate: (u: User) => void }> 
                     <div className="flex-1 space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome Completo</label>
-                            <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" />
+                            <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome de Exibição (Comentários)</label>
-                            <input value={formData.displayName || ''} onChange={e => setFormData({ ...formData, displayName: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" placeholder={formData.name.split(' ')[0]} />
+                            <input value={formData.displayName || ''} onChange={e => setFormData({ ...formData, displayName: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" placeholder={formData.name.split(' ')[0]} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Instagram</label>
                             <div className="relative">
                                 <span className="absolute left-4 top-3 text-gray-500 text-sm">@</span>
-                                <input value={formData.instagram || ''} onChange={e => setFormData({ ...formData, instagram: e.target.value.replace('@', '') })} className="w-full bg-brand-dark border border-white/20 rounded-lg px-4 py-3 pl-8 text-white focus:border-brand-primary outline-none transition-colors" placeholder="seu_usuario" />
+                                <input value={formData.instagram || ''} onChange={e => setFormData({ ...formData, instagram: e.target.value.replace('@', '') })} className="w-full bg-brand-dark border border-transparent rounded-lg px-4 py-3 pl-8 text-white focus:border-brand-primary outline-none transition-colors" placeholder="seu_usuario" />
                             </div>
                         </div>
                     </div>
@@ -3258,7 +3308,7 @@ export const UserProfile: React.FC<{ user: User, onUpdate: (u: User) => void }> 
                 <div className="pt-6 border-t border-white/5 space-y-4">
                     <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Email</label>
-                        <input value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" />
+                        <input value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Telefone</label>
@@ -3272,13 +3322,13 @@ export const UserProfile: React.FC<{ user: User, onUpdate: (u: User) => void }> 
                                 if (val.length > 10) val = `${val.slice(0, 10)}-${val.slice(10)}`;
                                 setFormData({ ...formData, phone: val });
                             }}
-                            className="w-full bg-brand-dark border border-white/20 rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors"
+                            className="w-full bg-brand-dark border border-transparent rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors"
                             placeholder="(99) 9 9999-9999"
                         />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome da Empresa</label>
-                        <input value={formData.companyName || ''} onChange={e => setFormData({ ...formData, companyName: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" />
+                        <input value={formData.companyName || ''} onChange={e => setFormData({ ...formData, companyName: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded-lg px-4 py-3 text-white focus:border-brand-primary outline-none transition-colors" />
                     </div>
                 </div>
 
@@ -3353,7 +3403,7 @@ export const ModerationView: React.FC = () => {
                     <button
                         onClick={load}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 text-gray-400 hover:text-white text-[12px] font-mono uppercase tracking-wider transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-transparent text-gray-400 hover:text-white text-[12px] font-mono uppercase tracking-wider transition-colors"
                     >
                         <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
                         Atualizar
@@ -3539,7 +3589,7 @@ export const IntegrationsView: React.FC = () => {
             <h1 className="text-3xl font-bold text-white mb-8">Integrações</h1>
 
             {/* Webhooks Section */}
-            <div className="bg-brand-card border border-white/10 rounded-xl p-6 mb-8">
+            <div className="bg-brand-card border border-transparent rounded-xl p-6 mb-8">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-pink-500/20 rounded-lg text-pink-500">
@@ -3560,15 +3610,15 @@ export const IntegrationsView: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome</label>
-                                <input value={newHook.name} onChange={e => setNewHook({ ...newHook, name: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none" placeholder="Ex: Zapier" />
+                                <input value={newHook.name} onChange={e => setNewHook({ ...newHook, name: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none" placeholder="Ex: Zapier" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL de Destino</label>
-                                <input value={newHook.url} onChange={e => setNewHook({ ...newHook, url: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none" placeholder="https://..." />
+                                <input value={newHook.url} onChange={e => setNewHook({ ...newHook, url: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none" placeholder="https://..." />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Evento</label>
-                                <select value={newHook.event} onChange={e => setNewHook({ ...newHook, event: e.target.value })} className="w-full bg-brand-dark border border-white/20 rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none">
+                                <select value={newHook.event} onChange={e => setNewHook({ ...newHook, event: e.target.value })} className="w-full bg-brand-dark border border-transparent rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none">
                                     <option value="user.created">Novo Usuário</option>
                                     <option value="course.completed">Curso Concluído</option>
                                     <option value="lesson.completed">Aula Concluída</option>
@@ -3605,7 +3655,7 @@ export const IntegrationsView: React.FC = () => {
             </div>
 
             {/* API Documentation */}
-            <div className="bg-brand-card border border-white/10 rounded-xl p-6 mb-8">
+            <div className="bg-brand-card border border-transparent rounded-xl p-6 mb-8">
                 <div className="flex items-center gap-4 mb-6">
                     <div className="p-3 bg-blue-500/20 rounded-lg text-blue-500">
                         <BookOpen size={24} />
@@ -3620,7 +3670,7 @@ export const IntegrationsView: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Endpoint</label>
                         <div className="flex items-center gap-2">
-                            <code className="flex-1 bg-black/40 border border-white/10 rounded px-4 py-3 text-brand-primary font-mono text-sm">
+                            <code className="flex-1 bg-black/40 border border-transparent rounded px-4 py-3 text-brand-primary font-mono text-sm">
                                 POST https://supa.conversapp.app.br/functions/v1/create-user
                             </code>
                             <button
@@ -3639,7 +3689,7 @@ export const IntegrationsView: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Exemplo de Requisição (JSON)</label>
                         <div className="relative">
-                            <pre className="bg-black/40 border border-white/10 rounded p-4 text-xs text-gray-300 font-mono overflow-x-auto">
+                            <pre className="bg-black/40 border border-transparent rounded p-4 text-xs text-gray-300 font-mono overflow-x-auto">
                                 {`{
   "name": "João Silva",
   "email": "joao@exemplo.com",
@@ -3677,7 +3727,7 @@ export const IntegrationsView: React.FC = () => {
 
             <div className="space-y-6">
                 <h2 className="text-xl font-bold text-white mb-4">Outras Configurações</h2>
-                <div className="bg-brand-card border border-white/10 rounded-xl p-6">
+                <div className="bg-brand-card border border-transparent rounded-xl p-6">
                     <div className="flex items-center gap-4 mb-6">
                         <div className="p-3 bg-brand-primary/20 rounded-lg text-brand-primary">
                             <Sparkles size={24} />
@@ -3690,14 +3740,14 @@ export const IntegrationsView: React.FC = () => {
                     <div className="space-y-4">
                         <label className="block text-xs font-bold text-gray-400 uppercase">API Key (Gemini)</label>
                         <div className="flex gap-2">
-                            <input type="password" value="**************************" disabled className="flex-1 bg-brand-dark border border-white/20 rounded px-4 py-2 text-white font-mono opacity-50" />
+                            <input type="password" value="**************************" disabled className="flex-1 bg-brand-dark border border-transparent rounded px-4 py-2 text-white font-mono opacity-50" />
                             <button className="px-4 bg-white/10 hover:bg-white/20 rounded text-white font-bold text-sm">Alterar</button>
                         </div>
                         <p className="text-xs text-gray-500 flex items-center gap-1"><ShieldCheck size={12} /> Chave armazenada de forma segura.</p>
                     </div>
                 </div>
 
-                <div className="bg-brand-card border border-white/10 rounded-xl p-6 opacity-50">
+                <div className="bg-brand-card border border-transparent rounded-xl p-6 opacity-50">
                     <div className="flex items-center gap-4 mb-6">
                         <div className="p-3 bg-blue-500/20 rounded-lg text-blue-500">
                             <Video size={24} />
